@@ -20,6 +20,10 @@ function formatDate(value: string | null) {
   return dateFormatter.format(new Date(value));
 }
 
+function formatStatus(value: string | null | undefined) {
+  return (value || "not_sent").replaceAll("_", " ");
+}
+
 export function BusinessList({ businesses }: BusinessListProps) {
   if (businesses.length === 0) {
     return (
@@ -121,6 +125,33 @@ export function BusinessList({ businesses }: BusinessListProps) {
                           Edit Website
                         </Link>
                       </div>
+                      <div>
+                        <span className="font-semibold text-stone-600">
+                          Offer:
+                        </span>{" "}
+                        <Link
+                          className="rounded bg-stone-100 px-1.5 py-1 text-stone-800 underline-offset-4 hover:underline"
+                          href={`/admin/websites/${business.website.id}/offer`}
+                        >
+                          Offer / Send Preview
+                        </Link>
+                      </div>
+                      <div>
+                        <span className="font-semibold text-stone-600">
+                          Outreach:
+                        </span>{" "}
+                        <code className="rounded bg-stone-100 px-1.5 py-1 text-stone-800">
+                          {formatStatus(business.website.outreach_status)}
+                        </code>
+                      </div>
+                      {business.website.preview_sent_at ? (
+                        <div>
+                          <span className="font-semibold text-stone-600">
+                            Sent:
+                          </span>{" "}
+                          {formatDate(business.website.preview_sent_at)}
+                        </div>
+                      ) : null}
                       {business.website.status === "live" ? (
                         <div>
                           <span className="font-semibold text-stone-600">

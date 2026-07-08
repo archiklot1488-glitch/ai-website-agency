@@ -12,8 +12,8 @@ links, payment unlocks, and live website publishing.
 - Supabase/Postgres
 - OpenAI Responses API for structured website JSON generation
 
-The current phases intentionally do not include Stripe, preview rendering, lead
-scraping, autonomous outreach, or custom domains.
+The current phases intentionally do not include Stripe, automatic email/SMS
+outreach, autonomous SDR workflows, payments, or custom domains.
 
 ## Setup
 
@@ -188,11 +188,13 @@ For an existing Supabase database, run:
 
 ```sql
 -- database/migrations/phase4-lead-finder.sql
+-- database/migrations/phase6-client-preview-package.sql
 ```
 
 The migration adds nullable source fields to `businesses`, creates
 `lead_searches` and `lead_candidates`, and adds indexes without dropping
-existing data.
+existing data. The Phase 6 migration adds offer tracking fields to `websites`
+without dropping existing data.
 
 ## Phase 5 Features
 
@@ -215,6 +217,32 @@ existing data.
 
 The editor saves structured JSON back to `websites.website_json`. It does not
 render or store arbitrary HTML.
+
+## Phase 6 Features
+
+- Admin offer package page at `/admin/websites/[id]/offer`
+- Deterministic local preview and follow-up message generation
+- Editable client message, follow-up message, offer price, notes, currency, and
+  outreach status
+- Copy buttons for the preview link and both messages
+- Manual `Mark Preview Sent` action that stores `preview_sent_at` and sets
+  `outreach_status = sent`
+- Dashboard offer links and outreach status tracking
+
+## Client Preview Package Testing
+
+1. Create or import a business in `/admin`.
+2. Click `Generate Website`.
+3. Click `Edit Website`, make any needed edits, and save.
+4. Click `Offer / Send Preview` in the business table.
+5. Set an offer price in cents, add notes, and review the generated messages.
+6. Copy the preview link, client message, or follow-up message.
+7. Click `Mark Preview Sent`.
+8. Return to `/admin` and confirm the outreach status shows `sent` and the sent
+   timestamp appears.
+
+No email or SMS is sent automatically in Phase 6. The copied messages are
+manual suggestions that should be reviewed before sending.
 
 ## Notes
 
