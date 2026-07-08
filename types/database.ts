@@ -151,4 +151,5 @@ export type Website = Database["public"]["Tables"]["websites"]["Row"];
 export type WebsiteInsert =
   Database["public"]["Tables"]["websites"]["Insert"];
 export type Lead = Database["public"]["Tables"]["leads"]["Row"];
+export type LeadInsert = Database["public"]["Tables"]["leads"]["Insert"];
 export type Payment = Database["public"]["Tables"]["payments"]["Row"];

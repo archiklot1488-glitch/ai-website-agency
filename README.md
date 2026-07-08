@@ -99,6 +99,47 @@ OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-4.1-mini
 ```
 
+## Phase 3 Features
+
+- Safe React renderer for generated website JSON
+- Preview route at `/preview/[slug]?token=[preview_token]`
+- Live route at `/site/[slug]`
+- Preview banner and disabled preview contact form
+- Live contact form that stores submissions in `leads`
+- Admin links for preview pages and live sites
+
+## Preview And Live Testing
+
+1. Set `DEV_MOCK_AI=true` in `.env.local`.
+2. Create a business in `/admin`.
+3. Click `Generate Website`.
+4. Use the preview link shown in the dashboard:
+
+   ```text
+   /preview/[slug]?token=[preview_token]
+   ```
+
+5. Confirm the preview page renders with a visible preview banner and disabled
+   contact form.
+
+To test the live route locally, manually update the generated website row in
+Supabase:
+
+```sql
+update public.websites
+set status = 'live', is_live = true
+where slug = 'your-generated-slug';
+```
+
+Then open:
+
+```text
+/site/[slug]
+```
+
+The live page should render without the preview banner. Submitting the contact
+form should create a row in `public.leads`.
+
 ## Notes
 
 The admin dashboard writes through a server-side Supabase client using the

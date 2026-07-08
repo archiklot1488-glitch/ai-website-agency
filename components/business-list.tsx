@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { BusinessWithWebsite } from "@/lib/businesses";
 import { GenerateWebsiteButton } from "@/components/generate-website-button";
 import { StatusBadge } from "@/components/status-badge";
@@ -101,11 +102,27 @@ export function BusinessList({ businesses }: BusinessListProps) {
                         <span className="font-semibold text-stone-600">
                           Preview:
                         </span>{" "}
-                        <code className="rounded bg-stone-100 px-1.5 py-1 text-stone-800">
+                        <Link
+                          className="break-all rounded bg-stone-100 px-1.5 py-1 text-stone-800 underline-offset-4 hover:underline"
+                          href={`/preview/${business.website.slug}?token=${business.website.preview_token}`}
+                        >
                           /preview/{business.website.slug}?token=
                           {business.website.preview_token}
-                        </code>
+                        </Link>
                       </div>
+                      {business.website.status === "live" ? (
+                        <div>
+                          <span className="font-semibold text-stone-600">
+                            Live:
+                          </span>{" "}
+                          <Link
+                            className="break-all rounded bg-stone-100 px-1.5 py-1 text-stone-800 underline-offset-4 hover:underline"
+                            href={`/site/${business.website.slug}`}
+                          >
+                            /site/{business.website.slug}
+                          </Link>
+                        </div>
+                      ) : null}
                     </div>
                   ) : (
                     <span className="text-sm text-stone-500">
