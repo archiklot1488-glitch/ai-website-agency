@@ -1,11 +1,26 @@
 import "server-only";
 
 import { randomBytes, randomUUID } from "crypto";
+import { validateGeneratedWebsiteContent } from "@/lib/generated-website-validator";
 import { generateWebsiteContent } from "@/lib/openai/website-generator";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database, Website } from "@/types/database";
+import type { RenderableWebsite } from "@/types/website-rendering";
 
 type SupabaseServerClient = ReturnType<typeof createSupabaseServerClient>;
+
+type WebsiteLoadResult =
+  | {
+      status: "ok";
+      website: RenderableWebsite;
+    }
+  | {
+      status: "not-found";
+    }
+  | {
+      status: "invalid";
+      message: string;
+    };
 
 function slugify(value: string) {
   const slug = value
@@ -20,6 +35,32 @@ function slugify(value: string) {
 
 function shortToken() {
   return randomBytes(3).toString("hex");
+}
+
+function validateWebsiteForRendering(website: Website): WebsiteLoadResult {
+  if (!website.website_json) {
+    return {
+      status: "invalid",
+      message: "This website does not have generated JSON content yet.",
+    };
+  }
+
+  const validation = validateGeneratedWebsiteContent(website.website_json);
+
+  if (!validation.ok) {
+    return {
+      status: "invalid",
+      message: `Generated website JSON is invalid: ${validation.error}`,
+    };
+  }
+
+  return {
+    status: "ok",
+    website: {
+      ...website,
+      website_json: validation.data,
+    },
+  };
 }
 
 async function createUniqueSlug(
@@ -110,4 +151,67 @@ export async function generateWebsitePreviewForBusiness(businessId: string) {
   }
 
   return website satisfies Website;
+}
+
+export async function getPreviewWebsiteBySlug(
+  slug: string,
+  token: string | null,
+): Promise<WebsiteLoadResult> {
+  if (!token) {
+    return {
+      status: "not-found",
+    };
+  }
+
+  const supabase = createSupabaseServerClient();
+  const { data: website, error } = await supabase
+    .from("websites")
+    .select("*")
+    .eq("slug", slug)
+    .single();
+
+  if (error || !website) {
+    return {
+      status: "not-found",
+    };
+  }
+
+  if (website.preview_token !== token) {
+    return {
+      status: "not-found",
+    };
+  }
+
+  if (website.status !== "preview" && website.status !== "live") {
+    return {
+      status: "not-found",
+    };
+  }
+
+  return validateWebsiteForRendering(website);
+}
+
+export async function getLiveWebsiteBySlug(
+  slug: string,
+): Promise<WebsiteLoadResult> {
+  const supabase = createSupabaseServerClient();
+  const { data: website, error } = await supabase
+    .from("websites")
+    .select("*")
+    .eq("slug", slug)
+    .single();
+
+  if (error || !website) {
+    return {
+      status: "not-found",
+    };
+  }
+
+  if (website.status !== "live") {
+    return {
+      status: "not-found",
+    };
+  }
+
+  return validateWebsiteForRendering(website);
 }
