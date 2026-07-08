@@ -41,6 +41,13 @@ type WebsiteRow = {
   website_json: GeneratedWebsiteContent | null;
   status: string;
   is_live: boolean;
+  offer_price_cents: number | null;
+  offer_currency: string;
+  offer_notes: string | null;
+  preview_sent_at: string | null;
+  client_message: string | null;
+  follow_up_message: string | null;
+  outreach_status: string;
   created_at: string;
   updated_at: string;
 };
@@ -152,6 +159,13 @@ export type Database = {
           website_json?: GeneratedWebsiteContent | null;
           status?: string;
           is_live?: boolean;
+          offer_price_cents?: number | null;
+          offer_currency?: string;
+          offer_notes?: string | null;
+          preview_sent_at?: string | null;
+          client_message?: string | null;
+          follow_up_message?: string | null;
+          outreach_status?: string;
           created_at?: string;
           updated_at?: string;
         },
