@@ -194,6 +194,28 @@ The migration adds nullable source fields to `businesses`, creates
 `lead_searches` and `lead_candidates`, and adds indexes without dropping
 existing data.
 
+## Phase 5 Features
+
+- Admin website editor at `/admin/websites/[id]/edit`
+- Structured editing for brand, hero, services, about, bullets, FAQ, contact,
+  and SEO content
+- Quality checklist stored under `website_json.admin.checklist`
+- Preview and live links from the editor
+- Dashboard `Edit Website` links for generated websites
+
+## Website Editor Testing
+
+1. Create or import a business in `/admin`.
+2. Click `Generate Website`.
+3. Click `Edit Website` in the business table.
+4. Modify the hero, services, FAQ, or contact fields.
+5. Update the quality checklist.
+6. Click `Save website`.
+7. Open the preview link and confirm the changes render immediately.
+
+The editor saves structured JSON back to `websites.website_json`. It does not
+render or store arbitrary HTML.
+
 ## Notes
 
 The admin dashboard writes through a server-side Supabase client using the
