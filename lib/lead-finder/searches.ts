@@ -1,0 +1,217 @@
+import "server-only";
+
+import { getLeadFinderProvider } from "@/lib/lead-finder/providers";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type {
+  BusinessInsert,
+  LeadCandidateInsert,
+  LeadCandidateRow,
+  LeadSearch,
+} from "@/types/database";
+import type { LeadCandidate, LeadSearchInput } from "@/types/lead-finder";
+
+export type LeadSearchWithCandidates = LeadSearch & {
+  candidates: LeadCandidateRow[];
+};
+
+function candidateToInsert(
+  leadSearchId: string,
+  candidate: LeadCandidate,
+): LeadCandidateInsert {
+  return {
+    lead_search_id: leadSearchId,
+    provider: candidate.provider,
+    provider_place_id: candidate.providerPlaceId,
+    business_name: candidate.businessName,
+    category: candidate.category,
+    address: candidate.address,
+    city: candidate.city,
+    country: candidate.country,
+    phone: candidate.phone,
+    website_url: candidate.websiteUrl,
+    google_maps_url: candidate.googleMapsUrl,
+    rating: candidate.rating,
+    review_count: candidate.reviewCount,
+    business_status: candidate.businessStatus,
+    has_website: candidate.hasWebsite,
+    lead_score: candidate.leadScore,
+    qualification: candidate.qualification,
+    raw_data: candidate.rawData,
+  };
+}
+
+export async function createLeadSearch(input: LeadSearchInput) {
+  const provider = getLeadFinderProvider();
+  const result = await provider.searchBusinesses(input);
+  const supabase = createSupabaseServerClient();
+
+  const { data: leadSearch, error: searchError } = await supabase
+    .from("lead_searches")
+    .insert({
+      query: result.query,
+      niche: input.niche,
+      city: input.city,
+      country: input.country,
+      provider: result.provider,
+      status: "completed",
+      result_count: result.candidates.length,
+    })
+    .select("*")
+    .single();
+
+  if (searchError || !leadSearch) {
+    throw new Error(searchError?.message || "Lead search could not be saved.");
+  }
+
+  if (result.candidates.length > 0) {
+    const { error: candidatesError } = await supabase
+      .from("lead_candidates")
+      .insert(
+        result.candidates.map((candidate) =>
+          candidateToInsert(leadSearch.id, candidate),
+        ),
+      );
+
+    if (candidatesError) {
+      throw new Error(candidatesError.message);
+    }
+  }
+
+  return leadSearch;
+}
+
+export async function getLeadSearchWithCandidates(
+  leadSearchId: string,
+): Promise<LeadSearchWithCandidates | null> {
+  const supabase = createSupabaseServerClient();
+  const { data: leadSearch, error: searchError } = await supabase
+    .from("lead_searches")
+    .select("*")
+    .eq("id", leadSearchId)
+    .single();
+
+  if (searchError || !leadSearch) {
+    return null;
+  }
+
+  const { data: candidates, error: candidatesError } = await supabase
+    .from("lead_candidates")
+    .select("*")
+    .eq("lead_search_id", leadSearchId)
+    .order("lead_score", { ascending: false });
+
+  if (candidatesError) {
+    throw new Error(candidatesError.message);
+  }
+
+  return {
+    ...leadSearch,
+    candidates: candidates ?? [],
+  };
+}
+
+async function findDuplicateBusiness(candidate: LeadCandidateRow) {
+  const supabase = createSupabaseServerClient();
+
+  if (candidate.provider_place_id) {
+    const { data, error } = await supabase
+      .from("businesses")
+      .select("id")
+      .eq("source_place_id", candidate.provider_place_id)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (data) {
+      return data.id;
+    }
+  }
+
+  const { data, error } = await supabase
+    .from("businesses")
+    .select("id")
+    .eq("business_name", candidate.business_name)
+    .eq("city", candidate.city ?? "")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data?.id ?? null;
+}
+
+export async function importLeadCandidate(candidateId: string) {
+  const supabase = createSupabaseServerClient();
+  const { data: candidate, error: candidateError } = await supabase
+    .from("lead_candidates")
+    .select("*")
+    .eq("id", candidateId)
+    .single();
+
+  if (candidateError || !candidate) {
+    throw new Error(candidateError?.message || "Lead candidate could not be found.");
+  }
+
+  if (candidate.imported_business_id) {
+    return candidate.imported_business_id;
+  }
+
+  const duplicateBusinessId = await findDuplicateBusiness(candidate);
+
+  if (duplicateBusinessId) {
+    const { error: updateError } = await supabase
+      .from("lead_candidates")
+      .update({ imported_business_id: duplicateBusinessId })
+      .eq("id", candidate.id);
+
+    if (updateError) {
+      throw new Error(updateError.message);
+    }
+
+    return duplicateBusinessId;
+  }
+
+  const payload: BusinessInsert = {
+    business_name: candidate.business_name,
+    business_type: candidate.category,
+    city: candidate.city,
+    country: candidate.country,
+    phone: candidate.phone,
+    website_url: candidate.website_url,
+    description: candidate.qualification
+      ? `Imported from Lead Finder. ${candidate.qualification}`
+      : "Imported from Lead Finder.",
+    status: "draft",
+    source: candidate.provider,
+    source_place_id: candidate.provider_place_id,
+    google_maps_url: candidate.google_maps_url,
+    rating: candidate.rating,
+    review_count: candidate.review_count,
+    lead_score: candidate.lead_score,
+    qualification: candidate.qualification,
+  };
+
+  const { data: business, error: businessError } = await supabase
+    .from("businesses")
+    .insert(payload)
+    .select("*")
+    .single();
+
+  if (businessError || !business) {
+    throw new Error(businessError?.message || "Business could not be imported.");
+  }
+
+  const { error: updateError } = await supabase
+    .from("lead_candidates")
+    .update({ imported_business_id: business.id })
+    .eq("id", candidate.id);
+
+  if (updateError) {
+    throw new Error(updateError.message);
+  }
+
+  return business.id;
+}
