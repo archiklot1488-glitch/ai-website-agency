@@ -1,14 +1,28 @@
-import { AdminNav } from "@/components/admin-nav";
 import { AdminLoginForm } from "@/components/admin-login-form";
-import { BusinessForm } from "@/components/business-form";
-import { BusinessList } from "@/components/business-list";
+import { AdminNav } from "@/components/admin-nav";
+import { LeadResults } from "@/components/lead-finder/lead-results";
+import { LeadSearchForm } from "@/components/lead-finder/lead-search-form";
 import { logoutAction } from "@/app/admin/actions";
-import { getBusinesses } from "@/lib/businesses";
 import { isAdminAuthenticated, isAdminConfigured } from "@/lib/admin-auth";
+import { getLeadSearchWithCandidates } from "@/lib/lead-finder/searches";
+
+type LeadFinderPageProps = {
+  searchParams: Promise<{
+    search?: string | string[];
+    imported?: string | string[];
+    import_error?: string | string[];
+  }>;
+};
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminPage() {
+function firstValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function LeadFinderPage({
+  searchParams,
+}: LeadFinderPageProps) {
   const isAuthenticated = await isAdminAuthenticated();
 
   if (!isAuthenticated) {
@@ -19,7 +33,11 @@ export default async function AdminPage() {
     );
   }
 
-  const { businesses, error } = await getBusinesses();
+  const query = await searchParams;
+  const searchId = firstValue(query.search);
+  const leadSearch = searchId
+    ? await getLeadSearchWithCandidates(searchId)
+    : null;
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-7xl px-6 py-8 lg:px-8">
@@ -30,11 +48,11 @@ export default async function AdminPage() {
               Admin dashboard
             </p>
             <h1 className="mt-3 text-3xl font-semibold text-stone-950">
-              AI Website Agency Automation
+              Lead Finder
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
-              Add local businesses and keep their intake details ready for future
-              preview generation, client sharing, and payment unlocks.
+              Search local businesses, score lead quality, and import selected
+              candidates for manual website generation.
             </p>
           </div>
 
@@ -51,32 +69,13 @@ export default async function AdminPage() {
         <AdminNav />
       </header>
 
-      <div className="grid gap-8 py-8 lg:grid-cols-[minmax(320px,420px)_1fr]">
-        <BusinessForm />
-        <section aria-labelledby="businesses-heading">
-          <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h2
-                className="text-xl font-semibold text-stone-950"
-                id="businesses-heading"
-              >
-                Businesses
-              </h2>
-              <p className="text-sm text-stone-600">
-                {businesses.length} saved business
-                {businesses.length === 1 ? "" : "es"}
-              </p>
-            </div>
-          </div>
-
-          {error ? (
-            <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-              {error}
-            </div>
-          ) : (
-            <BusinessList businesses={businesses} />
-          )}
-        </section>
+      <div className="grid gap-8 py-8">
+        <LeadSearchForm />
+        <LeadResults
+          importError={firstValue(query.import_error)}
+          importedBusinessId={firstValue(query.imported)}
+          leadSearch={leadSearch}
+        />
       </div>
     </main>
   );

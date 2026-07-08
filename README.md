@@ -41,6 +41,8 @@ scraping, autonomous outreach, or custom domains.
    OPENAI_API_KEY=
    OPENAI_MODEL=gpt-4.1-mini
    DEV_MOCK_AI=false
+   DEV_MOCK_PLACES=false
+   GOOGLE_MAPS_API_KEY=
    ```
 
 5. Start the app:
@@ -139,6 +141,58 @@ Then open:
 
 The live page should render without the preview banner. Submitting the contact
 form should create a row in `public.leads`.
+
+## Phase 4 Features
+
+- Admin-controlled Lead Finder at `/admin/lead-finder`
+- Provider abstraction for local business search
+- Deterministic mock places provider for local development
+- Google Places Text Search adapter for real searches
+- Lead scoring and qualification
+- Candidate import into the existing `businesses` table
+
+## Lead Finder Testing
+
+For local development without Google billing, set:
+
+```bash
+DEV_MOCK_PLACES=true
+```
+
+Then:
+
+1. Open `/admin/lead-finder`.
+2. Search for `cleaning service` in `Austin`.
+3. Import a candidate.
+4. Open `/admin` and confirm the imported business appears.
+5. Manually click `Generate Website` when you are ready to create a preview.
+
+Mock mode does not call Google and does not require `GOOGLE_MAPS_API_KEY`.
+
+## Real Google Places Setup
+
+To use real Google Places searches:
+
+```bash
+DEV_MOCK_PLACES=false
+GOOGLE_MAPS_API_KEY=your-google-api-key
+```
+
+Enable the Places API in Google Cloud for that key. Google calls happen only on
+the server through the Lead Finder provider adapter. The app uses Places Text
+Search (New) with a minimal field mask and does not scrape Google Maps pages.
+
+## Supabase Migration
+
+For an existing Supabase database, run:
+
+```sql
+-- database/migrations/phase4-lead-finder.sql
+```
+
+The migration adds nullable source fields to `businesses`, creates
+`lead_searches` and `lead_candidates`, and adds indexes without dropping
+existing data.
 
 ## Notes
 

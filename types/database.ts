@@ -21,6 +21,13 @@ type BusinessRow = {
   description: string | null;
   preferred_style: string | null;
   main_cta: string | null;
+  source: string | null;
+  source_place_id: string | null;
+  google_maps_url: string | null;
+  rating: number | null;
+  review_count: number | null;
+  lead_score: number | null;
+  qualification: string | null;
   status: string;
   created_at: string;
   updated_at: string;
@@ -61,6 +68,42 @@ type PaymentRow = {
   created_at: string;
 };
 
+type LeadSearchRow = {
+  id: string;
+  query: string;
+  niche: string;
+  city: string;
+  country: string | null;
+  provider: string;
+  status: string;
+  result_count: number;
+  created_at: string;
+};
+
+type LeadCandidateTableRow = {
+  id: string;
+  lead_search_id: string | null;
+  provider: string;
+  provider_place_id: string | null;
+  business_name: string;
+  category: string | null;
+  address: string | null;
+  city: string | null;
+  country: string | null;
+  phone: string | null;
+  website_url: string | null;
+  google_maps_url: string | null;
+  rating: number | null;
+  review_count: number | null;
+  business_status: string | null;
+  has_website: boolean;
+  lead_score: number;
+  qualification: string | null;
+  raw_data: Json | null;
+  imported_business_id: string | null;
+  created_at: string;
+};
+
 type TableDefinition<Row, Insert, Update> = {
   Row: Row;
   Insert: Insert;
@@ -86,6 +129,13 @@ export type Database = {
           description?: string | null;
           preferred_style?: string | null;
           main_cta?: string | null;
+          source?: string | null;
+          source_place_id?: string | null;
+          google_maps_url?: string | null;
+          rating?: number | null;
+          review_count?: number | null;
+          lead_score?: number | null;
+          qualification?: string | null;
           status?: string;
           created_at?: string;
           updated_at?: string;
@@ -136,6 +186,48 @@ export type Database = {
         },
         Partial<PaymentRow>
       >;
+      lead_searches: TableDefinition<
+        LeadSearchRow,
+        {
+          id?: string;
+          query: string;
+          niche: string;
+          city: string;
+          country?: string | null;
+          provider?: string;
+          status?: string;
+          result_count?: number;
+          created_at?: string;
+        },
+        Partial<LeadSearchRow>
+      >;
+      lead_candidates: TableDefinition<
+        LeadCandidateTableRow,
+        {
+          id?: string;
+          lead_search_id?: string | null;
+          provider: string;
+          provider_place_id?: string | null;
+          business_name: string;
+          category?: string | null;
+          address?: string | null;
+          city?: string | null;
+          country?: string | null;
+          phone?: string | null;
+          website_url?: string | null;
+          google_maps_url?: string | null;
+          rating?: number | null;
+          review_count?: number | null;
+          business_status?: string | null;
+          has_website?: boolean;
+          lead_score?: number;
+          qualification?: string | null;
+          raw_data?: Json | null;
+          imported_business_id?: string | null;
+          created_at?: string;
+        },
+        Partial<LeadCandidateTableRow>
+      >;
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -152,4 +244,12 @@ export type WebsiteInsert =
   Database["public"]["Tables"]["websites"]["Insert"];
 export type Lead = Database["public"]["Tables"]["leads"]["Row"];
 export type LeadInsert = Database["public"]["Tables"]["leads"]["Insert"];
+export type LeadSearch =
+  Database["public"]["Tables"]["lead_searches"]["Row"];
+export type LeadSearchInsert =
+  Database["public"]["Tables"]["lead_searches"]["Insert"];
+export type LeadCandidateRow =
+  Database["public"]["Tables"]["lead_candidates"]["Row"];
+export type LeadCandidateInsert =
+  Database["public"]["Tables"]["lead_candidates"]["Insert"];
 export type Payment = Database["public"]["Tables"]["payments"]["Row"];
