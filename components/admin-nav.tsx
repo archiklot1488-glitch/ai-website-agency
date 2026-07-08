@@ -15,6 +15,12 @@ export function AdminNav() {
       >
         Lead Finder
       </Link>
+      <Link
+        className="rounded-md border border-stone-300 bg-white px-3 py-2 text-stone-800 transition hover:bg-stone-100"
+        href="/admin/leads"
+      >
+        Leads / Deals
+      </Link>
     </nav>
   );
 }

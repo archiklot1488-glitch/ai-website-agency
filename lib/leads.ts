@@ -31,11 +31,16 @@ export async function createLeadForLiveWebsite(values: LeadFormValues) {
   const payload: LeadInsert = {
     business_id: website.business_id,
     website_id: website.id,
+    linked_business_id: website.business_id,
+    linked_website_id: website.id,
     name: values.name,
     email: values.email,
     phone: values.phone,
     message: values.message,
-    source: "live_site",
+    source: "website_contact_form",
+    status: "new",
+    priority: "normal",
+    handoff_required: false,
   };
 
   const { data, error } = await supabase
