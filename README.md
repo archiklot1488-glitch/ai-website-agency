@@ -40,6 +40,7 @@ scraping, autonomous outreach, or custom domains.
    ADMIN_PASSWORD=
    OPENAI_API_KEY=
    OPENAI_MODEL=gpt-4.1-mini
+   DEV_MOCK_AI=false
    ```
 
 5. Start the app:
@@ -74,6 +75,29 @@ npm run typecheck
 - Lightweight validation before saving generated content
 - Unique business-based website slugs and preview tokens
 - Website status, slug, and Phase 3 preview-link placeholder in the dashboard
+- Development mock mode for website generation without OpenAI billing
+
+## Local AI Testing
+
+Set `DEV_MOCK_AI=true` in `.env.local` to test website generation without making
+OpenAI API requests:
+
+```bash
+DEV_MOCK_AI=true
+```
+
+Mock mode creates deterministic structured website JSON from the saved business
+record, validates it with the same validator, then stores it in
+`websites.website_json` with `status = preview`, a generated slug, and a preview
+token.
+
+Use `OPENAI_API_KEY` only when you want real AI generation:
+
+```bash
+DEV_MOCK_AI=false
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4.1-mini
+```
 
 ## Notes
 

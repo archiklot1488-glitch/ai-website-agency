@@ -1,6 +1,10 @@
 import "server-only";
 
 import { validateGeneratedWebsiteContent } from "@/lib/generated-website-validator";
+import {
+  generateMockWebsiteContent,
+  shouldUseMockAi,
+} from "@/lib/mock-website-generator";
 import type { Business } from "@/types/database";
 import type { GeneratedWebsiteContent } from "@/types/generated-website";
 
@@ -205,6 +209,10 @@ async function readOpenAIResponse(response: Response) {
 export async function generateWebsiteContent(
   business: Business,
 ): Promise<GeneratedWebsiteContent> {
+  if (shouldUseMockAi()) {
+    return generateMockWebsiteContent(business);
+  }
+
   const { apiKey, model } = getOpenAIConfig();
 
   const response = await fetch(OPENAI_RESPONSES_URL, {
