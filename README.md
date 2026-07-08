@@ -10,9 +10,10 @@ links, payment unlocks, and live website publishing.
 - TypeScript
 - Tailwind CSS
 - Supabase/Postgres
+- OpenAI Responses API for structured website JSON generation
 
-Phase 1 intentionally does not include Stripe, OpenAI integration, lead scraping,
-or autonomous outreach.
+The current phases intentionally do not include Stripe, preview rendering, lead
+scraping, autonomous outreach, or custom domains.
 
 ## Setup
 
@@ -37,6 +38,8 @@ or autonomous outreach.
    NEXT_PUBLIC_SUPABASE_ANON_KEY=
    SUPABASE_SERVICE_ROLE_KEY=
    ADMIN_PASSWORD=
+   OPENAI_API_KEY=
+   OPENAI_MODEL=gpt-4.1-mini
    ```
 
 5. Start the app:
@@ -64,8 +67,19 @@ npm run typecheck
 - Typed Supabase browser and server helpers
 - Supabase schema for `businesses`, `websites`, `leads`, and `payments`
 
+## Phase 2 Features
+
+- Admin-only website generation action
+- Structured OpenAI JSON output stored in `websites.website_json`
+- Lightweight validation before saving generated content
+- Unique business-based website slugs and preview tokens
+- Website status, slug, and Phase 3 preview-link placeholder in the dashboard
+
 ## Notes
 
 The admin dashboard writes through a server-side Supabase client using the
 service role key. Row level security is enabled by the schema so future public
 or client-facing features can add explicit policies without exposing admin data.
+
+The generator never stores arbitrary HTML. OpenAI returns structured JSON that
+future React preview sections can render safely.
