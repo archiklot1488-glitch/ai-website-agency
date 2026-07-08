@@ -28,6 +28,9 @@ export type GeneratedWebsiteContent = {
     title: string;
     description: string;
   };
+  admin?: {
+    checklist?: WebsiteQualityChecklist;
+  };
 };
 
 export type GeneratedWebsiteService = {
@@ -38,4 +41,13 @@ export type GeneratedWebsiteService = {
 export type GeneratedWebsiteFaq = {
   question: string;
   answer: string;
+};
+
+export type WebsiteQualityChecklist = {
+  heroHeadlineChecked: boolean;
+  servicesChecked: boolean;
+  contactDetailsChecked: boolean;
+  ctaChecked: boolean;
+  mobilePreviewChecked: boolean;
+  readyToSend: boolean;
 };

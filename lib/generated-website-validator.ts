@@ -2,6 +2,7 @@ import type {
   GeneratedWebsiteContent,
   GeneratedWebsiteFaq,
   GeneratedWebsiteService,
+  WebsiteQualityChecklist,
 } from "@/types/generated-website";
 
 type ValidationResult =
@@ -55,15 +56,9 @@ function requiredString(
 function validateStringArray(
   value: unknown,
   path: string,
-  minLength: number,
-  maxLength: number,
 ) {
   if (!Array.isArray(value)) {
     return `${path} must be an array.`;
-  }
-
-  if (value.length < minLength || value.length > maxLength) {
-    return `${path} must include ${minLength}-${maxLength} items.`;
   }
 
   for (const [index, item] of value.entries()) {
@@ -78,10 +73,6 @@ function validateStringArray(
 function validateServices(value: unknown) {
   if (!Array.isArray(value)) {
     return "services must be an array.";
-  }
-
-  if (value.length < 3 || value.length > 6) {
-    return "services must include 3-6 services.";
   }
 
   for (const [index, service] of value.entries()) {
@@ -113,10 +104,6 @@ function validateFaq(value: unknown) {
     return "faq must be an array.";
   }
 
-  if (value.length < 4 || value.length > 6) {
-    return "faq must include 4-6 questions.";
-  }
-
   for (const [index, item] of value.entries()) {
     if (!isRecord(item)) {
       return `faq[${index}] must be an object.`;
@@ -135,6 +122,39 @@ function validateFaq(value: unknown) {
   }
 
   return null;
+}
+
+function booleanValue(value: unknown) {
+  return typeof value === "boolean" ? value : false;
+}
+
+function sanitizeChecklist(value: unknown): WebsiteQualityChecklist | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  return {
+    heroHeadlineChecked: booleanValue(value.heroHeadlineChecked),
+    servicesChecked: booleanValue(value.servicesChecked),
+    contactDetailsChecked: booleanValue(value.contactDetailsChecked),
+    ctaChecked: booleanValue(value.ctaChecked),
+    mobilePreviewChecked: booleanValue(value.mobilePreviewChecked),
+    readyToSend: booleanValue(value.readyToSend),
+  };
+}
+
+function sanitizeAdmin(value: unknown): GeneratedWebsiteContent["admin"] {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const checklist = sanitizeChecklist(value.checklist);
+
+  return checklist
+    ? {
+        checklist,
+      }
+    : undefined;
 }
 
 function validateObjectStrings(
@@ -182,7 +202,7 @@ export function validateGeneratedWebsiteContent(
     ]),
     validateServices(value.services),
     validateObjectStrings(value.about, "about", ["title", "paragraph"]),
-    validateStringArray(value.whyChooseUs, "whyChooseUs", 3, 5),
+    validateStringArray(value.whyChooseUs, "whyChooseUs"),
     validateFaq(value.faq),
     validateObjectStrings(value.contact, "contact", [
       "ctaText",
@@ -203,6 +223,7 @@ export function validateGeneratedWebsiteContent(
   }
 
   const content = value as GeneratedWebsiteContent;
+  const admin = sanitizeAdmin(value.admin);
 
   return {
     ok: true,
@@ -242,6 +263,7 @@ export function validateGeneratedWebsiteContent(
         title: content.seo.title.trim(),
         description: content.seo.description.trim(),
       },
+      ...(admin ? { admin } : {}),
     },
   };
 }

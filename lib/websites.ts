@@ -5,6 +5,7 @@ import { validateGeneratedWebsiteContent } from "@/lib/generated-website-validat
 import { generateWebsiteContent } from "@/lib/openai/website-generator";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Database, Website } from "@/types/database";
+import type { Business } from "@/types/database";
 import type { RenderableWebsite } from "@/types/website-rendering";
 
 type SupabaseServerClient = ReturnType<typeof createSupabaseServerClient>;
@@ -21,6 +22,11 @@ type WebsiteLoadResult =
       status: "invalid";
       message: string;
     };
+
+export type AdminWebsiteEditRecord = {
+  business: Business | null;
+  website: RenderableWebsite;
+};
 
 function slugify(value: string) {
   const slug = value
@@ -214,4 +220,77 @@ export async function getLiveWebsiteBySlug(
   }
 
   return validateWebsiteForRendering(website);
+}
+
+export async function getWebsiteForAdminEdit(
+  websiteId: string,
+): Promise<WebsiteLoadResult & { business?: Business | null }> {
+  const supabase = createSupabaseServerClient();
+  const { data: website, error } = await supabase
+    .from("websites")
+    .select("*")
+    .eq("id", websiteId)
+    .single();
+
+  if (error || !website) {
+    return {
+      status: "not-found",
+    };
+  }
+
+  const validatedWebsite = validateWebsiteForRendering(website);
+
+  if (validatedWebsite.status !== "ok") {
+    return validatedWebsite;
+  }
+
+  if (!website.business_id) {
+    return {
+      ...validatedWebsite,
+      business: null,
+    };
+  }
+
+  const { data: business, error: businessError } = await supabase
+    .from("businesses")
+    .select("*")
+    .eq("id", website.business_id)
+    .maybeSingle();
+
+  if (businessError) {
+    throw new Error(businessError.message);
+  }
+
+  return {
+    ...validatedWebsite,
+    business: business ?? null,
+  };
+}
+
+export async function updateWebsiteJson(
+  websiteId: string,
+  content: unknown,
+) {
+  const validation = validateGeneratedWebsiteContent(content);
+
+  if (!validation.ok) {
+    throw new Error(validation.error);
+  }
+
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("websites")
+    .update({
+      website_json: validation.data,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", websiteId)
+    .select("*")
+    .single();
+
+  if (error || !data) {
+    throw new Error(error?.message || "Website could not be saved.");
+  }
+
+  return data;
 }
