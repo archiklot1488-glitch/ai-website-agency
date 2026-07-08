@@ -1,8 +1,9 @@
-import type { Business } from "@/types/database";
+import type { BusinessWithWebsite } from "@/lib/businesses";
+import { GenerateWebsiteButton } from "@/components/generate-website-button";
 import { StatusBadge } from "@/components/status-badge";
 
 type BusinessListProps = {
-  businesses: Business[];
+  businesses: BusinessWithWebsite[];
 };
 
 const dateFormatter = new Intl.DateTimeFormat("en", {
@@ -50,6 +51,12 @@ export function BusinessList({ businesses }: BusinessListProps) {
               <th className="px-4 py-3" scope="col">
                 Created
               </th>
+              <th className="px-4 py-3" scope="col">
+                Website
+              </th>
+              <th className="px-4 py-3" scope="col">
+                Action
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-stone-100">
@@ -72,6 +79,45 @@ export function BusinessList({ businesses }: BusinessListProps) {
                 </td>
                 <td className="px-4 py-4 align-top text-stone-700">
                   {formatDate(business.created_at)}
+                </td>
+                <td className="px-4 py-4 align-top">
+                  {business.website ? (
+                    <div className="space-y-2 text-xs leading-5 text-stone-700">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-stone-950">
+                          Website
+                        </span>
+                        <StatusBadge status={business.website.status} />
+                      </div>
+                      <div>
+                        <span className="font-semibold text-stone-600">
+                          Slug:
+                        </span>{" "}
+                        <code className="rounded bg-stone-100 px-1.5 py-1 text-stone-800">
+                          {business.website.slug}
+                        </code>
+                      </div>
+                      <div>
+                        <span className="font-semibold text-stone-600">
+                          Preview:
+                        </span>{" "}
+                        <code className="rounded bg-stone-100 px-1.5 py-1 text-stone-800">
+                          /preview/{business.website.slug}?token=
+                          {business.website.preview_token}
+                        </code>
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="text-sm text-stone-500">
+                      No website generated
+                    </span>
+                  )}
+                </td>
+                <td className="px-4 py-4 align-top">
+                  <GenerateWebsiteButton
+                    businessId={business.id}
+                    disabled={Boolean(business.website)}
+                  />
                 </td>
               </tr>
             ))}

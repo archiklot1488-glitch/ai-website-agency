@@ -1,7 +1,11 @@
 import "server-only";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { Business, BusinessInsert } from "@/types/database";
+import type { Business, BusinessInsert, Website } from "@/types/database";
+
+export type BusinessWithWebsite = Business & {
+  website: Website | null;
+};
 
 export type BusinessFormValues = Pick<
   BusinessInsert,
@@ -19,7 +23,7 @@ export type BusinessFormValues = Pick<
 >;
 
 export async function getBusinesses(): Promise<{
-  businesses: Business[];
+  businesses: BusinessWithWebsite[];
   error: string | null;
 }> {
   try {
@@ -36,8 +40,36 @@ export async function getBusinesses(): Promise<{
       };
     }
 
+    const businesses = data ?? [];
+    const businessIds = businesses.map((business) => business.id);
+    const websitesByBusinessId = new Map<string, Website>();
+
+    if (businessIds.length > 0) {
+      const { data: websites, error: websitesError } = await supabase
+        .from("websites")
+        .select("*")
+        .in("business_id", businessIds)
+        .order("created_at", { ascending: false });
+
+      if (websitesError) {
+        return {
+          businesses: [],
+          error: websitesError.message,
+        };
+      }
+
+      for (const website of websites ?? []) {
+        if (website.business_id && !websitesByBusinessId.has(website.business_id)) {
+          websitesByBusinessId.set(website.business_id, website);
+        }
+      }
+    }
+
     return {
-      businesses: data ?? [],
+      businesses: businesses.map((business) => ({
+        ...business,
+        website: websitesByBusinessId.get(business.id) ?? null,
+      })),
       error: null,
     };
   } catch (error) {

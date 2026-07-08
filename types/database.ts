@@ -1,3 +1,5 @@
+import type { GeneratedWebsiteContent } from "@/types/generated-website";
+
 export type Json =
   | string
   | number
@@ -29,7 +31,7 @@ type WebsiteRow = {
   business_id: string | null;
   slug: string;
   preview_token: string;
-  website_json: Json | null;
+  website_json: GeneratedWebsiteContent | null;
   status: string;
   is_live: boolean;
   created_at: string;
@@ -97,7 +99,7 @@ export type Database = {
           business_id?: string | null;
           slug: string;
           preview_token: string;
-          website_json?: Json | null;
+          website_json?: GeneratedWebsiteContent | null;
           status?: string;
           is_live?: boolean;
           created_at?: string;
@@ -146,5 +148,7 @@ export type Business = Database["public"]["Tables"]["businesses"]["Row"];
 export type BusinessInsert =
   Database["public"]["Tables"]["businesses"]["Insert"];
 export type Website = Database["public"]["Tables"]["websites"]["Row"];
+export type WebsiteInsert =
+  Database["public"]["Tables"]["websites"]["Insert"];
 export type Lead = Database["public"]["Tables"]["leads"]["Row"];
 export type Payment = Database["public"]["Tables"]["payments"]["Row"];

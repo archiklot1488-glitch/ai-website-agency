@@ -1,0 +1,113 @@
+import "server-only";
+
+import { randomBytes, randomUUID } from "crypto";
+import { generateWebsiteContent } from "@/lib/openai/website-generator";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { Database, Website } from "@/types/database";
+
+type SupabaseServerClient = ReturnType<typeof createSupabaseServerClient>;
+
+function slugify(value: string) {
+  const slug = value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+
+  return slug || "business";
+}
+
+function shortToken() {
+  return randomBytes(3).toString("hex");
+}
+
+async function createUniqueSlug(
+  supabase: SupabaseServerClient,
+  businessName: string,
+) {
+  const baseSlug = slugify(businessName);
+
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const slug = attempt === 0 ? baseSlug : `${baseSlug}-${shortToken()}`;
+    const { data, error } = await supabase
+      .from("websites")
+      .select("id")
+      .eq("slug", slug)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data) {
+      return slug;
+    }
+  }
+
+  throw new Error("Could not create a unique website slug.");
+}
+
+export async function generateWebsitePreviewForBusiness(businessId: string) {
+  const supabase = createSupabaseServerClient();
+
+  const { data: existingWebsite, error: existingError } = await supabase
+    .from("websites")
+    .select("*")
+    .eq("business_id", businessId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingError) {
+    throw new Error(existingError.message);
+  }
+
+  if (existingWebsite) {
+    throw new Error("A website preview already exists for this business.");
+  }
+
+  const { data: business, error: businessError } = await supabase
+    .from("businesses")
+    .select("*")
+    .eq("id", businessId)
+    .single();
+
+  if (businessError || !business) {
+    throw new Error(businessError?.message || "Business could not be found.");
+  }
+
+  const websiteJson = await generateWebsiteContent(business);
+  const slug = await createUniqueSlug(supabase, business.business_name);
+  const previewToken = randomUUID();
+
+  const payload: Database["public"]["Tables"]["websites"]["Insert"] = {
+    business_id: business.id,
+    slug,
+    preview_token: previewToken,
+    website_json: websiteJson,
+    status: "preview",
+    is_live: false,
+  };
+
+  const { data: website, error: websiteError } = await supabase
+    .from("websites")
+    .insert(payload)
+    .select("*")
+    .single();
+
+  if (websiteError || !website) {
+    throw new Error(websiteError?.message || "Website preview could not be saved.");
+  }
+
+  const { error: updateError } = await supabase
+    .from("businesses")
+    .update({ status: "preview" })
+    .eq("id", business.id);
+
+  if (updateError) {
+    throw new Error(updateError.message);
+  }
+
+  return website satisfies Website;
+}

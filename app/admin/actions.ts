@@ -9,6 +9,7 @@ import {
   verifyAdminPassword,
 } from "@/lib/admin-auth";
 import { createBusiness } from "@/lib/businesses";
+import { generateWebsitePreviewForBusiness } from "@/lib/websites";
 import type { ActionState } from "@/types/actions";
 
 function valueFromForm(formData: FormData, key: string): string | null {
@@ -103,6 +104,48 @@ export async function createBusinessAction(
         error instanceof Error
           ? error.message
           : "The business could not be saved.",
+    };
+  }
+}
+
+export async function generateWebsiteAction(
+  _previousState: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const isAdmin = await requireAdmin();
+
+  if (!isAdmin) {
+    return {
+      status: "error",
+      message: "Your admin session has expired. Log in again to continue.",
+    };
+  }
+
+  const businessId = valueFromForm(formData, "business_id");
+
+  if (!businessId) {
+    return {
+      status: "error",
+      message: "Business id is required.",
+    };
+  }
+
+  try {
+    const website = await generateWebsitePreviewForBusiness(businessId);
+
+    revalidatePath("/admin");
+
+    return {
+      status: "success",
+      message: `Website preview generated: ${website.slug}`,
+    };
+  } catch (error) {
+    return {
+      status: "error",
+      message:
+        error instanceof Error
+          ? error.message
+          : "Website preview could not be generated.",
     };
   }
 }
