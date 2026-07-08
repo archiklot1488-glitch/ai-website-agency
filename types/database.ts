@@ -61,6 +61,17 @@ type LeadRow = {
   email: string | null;
   message: string | null;
   source: string | null;
+  status: string;
+  priority: string;
+  conversation_summary: string | null;
+  last_contacted_at: string | null;
+  admin_notes: string | null;
+  deal_value_cents: number | null;
+  deal_currency: string;
+  preferred_payment_method: string | null;
+  handoff_required: boolean;
+  linked_website_id: string | null;
+  linked_business_id: string | null;
   created_at: string;
 };
 
@@ -182,6 +193,17 @@ export type Database = {
           email?: string | null;
           message?: string | null;
           source?: string | null;
+          status?: string;
+          priority?: string;
+          conversation_summary?: string | null;
+          last_contacted_at?: string | null;
+          admin_notes?: string | null;
+          deal_value_cents?: number | null;
+          deal_currency?: string;
+          preferred_payment_method?: string | null;
+          handoff_required?: boolean;
+          linked_website_id?: string | null;
+          linked_business_id?: string | null;
           created_at?: string;
         },
         Partial<LeadRow>

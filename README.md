@@ -43,6 +43,7 @@ outreach, autonomous SDR workflows, payments, or custom domains.
    DEV_MOCK_AI=false
    DEV_MOCK_PLACES=false
    GOOGLE_MAPS_API_KEY=
+   HANDOFF_API_SECRET=
    ```
 
 5. Start the app:
@@ -189,12 +190,14 @@ For an existing Supabase database, run:
 ```sql
 -- database/migrations/phase4-lead-finder.sql
 -- database/migrations/phase6-client-preview-package.sql
+-- database/migrations/phase7-sales-handoff-pipeline.sql
 ```
 
 The migration adds nullable source fields to `businesses`, creates
 `lead_searches` and `lead_candidates`, and adds indexes without dropping
 existing data. The Phase 6 migration adds offer tracking fields to `websites`
-without dropping existing data.
+without dropping existing data. The Phase 7 migration adds deal tracking fields
+to `leads` without dropping existing data.
 
 ## Phase 5 Features
 
@@ -243,6 +246,66 @@ render or store arbitrary HTML.
 
 No email or SMS is sent automatically in Phase 6. The copied messages are
 manual suggestions that should be reviewed before sending.
+
+## Phase 7 Features
+
+- Admin Leads / Deals page at `/admin/leads`
+- Manual deal status, priority, notes, conversation summary, deal value, and
+  preferred payment method tracking
+- Hot lead highlighting for `needs_human`, high-priority, or handoff-required
+  leads
+- Live contact form leads enter the pipeline as `new` with source
+  `website_contact_form`
+- Manual launch workflow after a lead is marked `paid_manual`
+- Protected future handoff endpoint at `POST /api/handoff`
+
+## Sales Pipeline Testing
+
+1. Open `/admin/leads`.
+2. Update a lead status, priority, admin notes, conversation summary, deal
+   value, or preferred payment method.
+3. Click `Save`, `Mark contacted`, `Mark paid manual`, or `Mark lost`.
+4. For a linked lead with status `paid_manual`, click `Launch Website`.
+5. Confirm the linked website opens at `/site/[slug]` and the lead status becomes
+   `launched`.
+
+To test live contact form lead creation:
+
+1. Set a generated website to live in Supabase:
+
+   ```sql
+   update public.websites
+   set status = 'live', is_live = true
+   where slug = 'your-generated-slug';
+   ```
+
+2. Open `/site/[slug]`.
+3. Submit the contact form.
+4. Open `/admin/leads` and confirm the lead appears with source
+   `website_contact_form`, status `new`, and priority `normal`.
+
+To test the protected handoff API:
+
+```bash
+curl -X POST http://localhost:3000/api/handoff \
+  -H "Content-Type: application/json" \
+  -H "x-handoff-secret: $HANDOFF_API_SECRET" \
+  -d '{
+    "website_slug": "your-generated-slug",
+    "name": "Alex Client",
+    "email": "alex@example.com",
+    "phone": "+1 555 0100",
+    "message": "Interested in the preview and pricing.",
+    "conversation_summary": "Asked for payment options and launch timing.",
+    "priority": "high",
+    "preferred_payment_method": "Bank transfer",
+    "deal_value_cents": 50000
+  }'
+```
+
+The API creates a `needs_human` lead with source `bot_handoff`,
+`handoff_required = true`, and high priority by default. It requires
+`HANDOFF_API_SECRET` and the `x-handoff-secret` header.
 
 ## Notes
 
