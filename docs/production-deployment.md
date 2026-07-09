@@ -46,11 +46,14 @@ Do not expose `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_PASSWORD`,
 ```bash
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4.1-mini
+OPENAI_TIMEOUT_MS=30000
+OPENAI_MAX_OUTPUT_TOKENS=4000
 GOOGLE_PLACES_API_KEY=
 GOOGLE_MAPS_API_KEY=
 DEV_MOCK_AI=true
 DEV_MOCK_PLACES=true
 DEV_MOCK_SDR=true
+OUTREACH_USE_OPENAI=false
 SDR_USE_OPENAI=false
 ```
 
@@ -65,6 +68,7 @@ Local development can use mock modes:
 DEV_MOCK_AI=true
 DEV_MOCK_PLACES=true
 DEV_MOCK_SDR=true
+OUTREACH_USE_OPENAI=false
 SDR_USE_OPENAI=false
 ```
 
@@ -77,6 +81,20 @@ To switch Lead Finder to real Google Places after smoke testing:
 GOOGLE_PLACES_API_KEY=your-google-places-key
 DEV_MOCK_PLACES=false
 ```
+
+To switch real OpenAI features on, configure `OPENAI_API_KEY` and enable only
+the mode you are ready to test:
+
+```bash
+DEV_MOCK_AI=false
+OUTREACH_USE_OPENAI=true
+DEV_MOCK_SDR=false
+SDR_USE_OPENAI=true
+```
+
+Each OpenAI feature runs server-side only and remains manual where applicable:
+website generation saves structured JSON, outreach drafts are not sent
+automatically, and SDR replies are suggestions for admin review.
 
 Redeploy after changing Vercel environment variables. Lead Finder calls Places
 API (New) Text Search from the server only, uses a limited FieldMask, and does

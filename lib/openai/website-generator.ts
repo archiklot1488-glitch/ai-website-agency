@@ -1,5 +1,7 @@
 import "server-only";
 
+import { OpenAIProviderError } from "@/lib/ai/openai-errors";
+import { generateStructuredJSON } from "@/lib/ai/openai-client";
 import { validateGeneratedWebsiteContent } from "@/lib/generated-website-validator";
 import {
   generateMockWebsiteContent,
@@ -7,9 +9,6 @@ import {
 } from "@/lib/mock-website-generator";
 import type { Business } from "@/types/database";
 import type { GeneratedWebsiteContent } from "@/types/generated-website";
-
-const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
-const DEFAULT_MODEL = "gpt-4.1-mini";
 
 const websiteContentSchema = {
   type: "object",
@@ -113,34 +112,21 @@ const websiteContentSchema = {
   additionalProperties: false,
 } as const;
 
-type OpenAIResponse = {
-  output_text?: string;
-  output?: Array<{
-    type?: string;
-    content?: Array<{
-      type?: string;
-      text?: string;
-    }>;
-  }>;
-  error?: {
-    message?: string;
-  };
+type BusinessWebsitePromptRecord = {
+  business_name: string;
+  business_type: string | null;
+  city: string | null;
+  country: string | null;
+  description: string | null;
+  email: string | null;
+  main_cta: string | null;
+  phone: string | null;
+  preferred_style: string | null;
+  services: string | null;
+  website_url: string | null;
 };
 
-function getOpenAIConfig() {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-
-  if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is not configured.");
-  }
-
-  return {
-    apiKey,
-    model: process.env.OPENAI_MODEL?.trim() || DEFAULT_MODEL,
-  };
-}
-
-function businessSummary(business: Business) {
+function businessSummary(business: Business): BusinessWebsitePromptRecord {
   return {
     business_name: business.business_name,
     business_type: business.business_type,
@@ -171,39 +157,8 @@ Requirements:
 - whyChooseUs must include 3-5 short bullet points.
 - faq must include 4-6 question and answer pairs.
 - primaryColor and secondaryColor should be usable CSS color strings.
-- seo.description should be suitable for a meta description and stay under 160 characters.`;
-}
-
-function extractResponseText(response: OpenAIResponse) {
-  if (typeof response.output_text === "string") {
-    return response.output_text;
-  }
-
-  for (const outputItem of response.output ?? []) {
-    for (const content of outputItem.content ?? []) {
-      if (content.type === "output_text" && typeof content.text === "string") {
-        return content.text;
-      }
-    }
-  }
-
-  return null;
-}
-
-function sanitizeOpenAIError(message: string) {
-  return message.replace(/sk-[A-Za-z0-9_-]+/g, "[redacted]");
-}
-
-async function readOpenAIResponse(response: Response) {
-  try {
-    return (await response.json()) as OpenAIResponse;
-  } catch {
-    return {
-      error: {
-        message: "The OpenAI API returned a response that was not JSON.",
-      },
-    } satisfies OpenAIResponse;
-  }
+- seo.description should be suitable for a meta description and stay under 160 characters.
+- Do not claim the business has reviews, awards, certifications, emergency availability, years in business, or guarantees unless the record explicitly says so.`;
 }
 
 export async function generateWebsiteContent(
@@ -213,68 +168,23 @@ export async function generateWebsiteContent(
     return generateMockWebsiteContent(business);
   }
 
-  const { apiKey, model } = getOpenAIConfig();
-
-  const response = await fetch(OPENAI_RESPONSES_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      input: [
-        {
-          role: "system",
-          content:
-            "You are a senior website copywriter. Return only structured JSON that matches the provided schema.",
-        },
-        {
-          role: "user",
-          content: buildPrompt(business),
-        },
-      ],
-      text: {
-        format: {
-          type: "json_schema",
-          name: "generated_website_content",
-          schema: websiteContentSchema,
-          strict: true,
-        },
-      },
-      store: false,
-      max_output_tokens: 2500,
-    }),
+  const parsed = await generateStructuredJSON<unknown>({
+    feature: "Website generation",
+    maxOutputTokens: 4000,
+    schema: websiteContentSchema,
+    schemaName: "generated_website_content",
+    system:
+      "You are a senior website copywriter. Return only structured JSON that matches the provided schema. Do not generate HTML, Markdown, JSX, CSS, or scripts.",
+    user: buildPrompt(business),
   });
-
-  const responseBody = await readOpenAIResponse(response);
-
-  if (!response.ok) {
-    throw new Error(
-      responseBody.error?.message
-        ? `OpenAI generation failed: ${sanitizeOpenAIError(responseBody.error.message)}`
-        : `OpenAI generation failed with status ${response.status}.`,
-    );
-  }
-
-  const text = extractResponseText(responseBody);
-
-  if (!text) {
-    throw new Error("OpenAI did not return website JSON.");
-  }
-
-  let parsed: unknown;
-
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw new Error("OpenAI returned invalid JSON.");
-  }
 
   const validation = validateGeneratedWebsiteContent(parsed);
 
   if (!validation.ok) {
-    throw new Error(`OpenAI returned incomplete website JSON: ${validation.error}`);
+    throw new OpenAIProviderError(
+      "schema_validation_failed",
+      `OpenAI returned incomplete website JSON: ${validation.error}`,
+    );
   }
 
   return validation.data;

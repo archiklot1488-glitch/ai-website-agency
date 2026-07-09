@@ -44,10 +44,14 @@ NEXT_PUBLIC_APP_URL=https://YOUR_DOMAIN.com
 
 ```bash
 OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4.1-mini
+OPENAI_TIMEOUT_MS=30000
+OPENAI_MAX_OUTPUT_TOKENS=4000
 GOOGLE_PLACES_API_KEY=
 DEV_MOCK_AI=true
 DEV_MOCK_PLACES=true
 DEV_MOCK_SDR=true
+OUTREACH_USE_OPENAI=false
 SDR_USE_OPENAI=false
 ```
 
@@ -57,6 +61,7 @@ Recommended initial production smoke-test values:
 DEV_MOCK_AI=true
 DEV_MOCK_PLACES=true
 DEV_MOCK_SDR=true
+OUTREACH_USE_OPENAI=false
 SDR_USE_OPENAI=false
 ```
 
@@ -68,13 +73,30 @@ deliberately:
 ```bash
 DEV_MOCK_AI=false
 OPENAI_API_KEY=your-openai-key
+OPENAI_MODEL=gpt-4.1-mini
 
 DEV_MOCK_PLACES=false
 GOOGLE_PLACES_API_KEY=your-google-places-key
 ```
 
-If `SDR_USE_OPENAI=true`, configure `OPENAI_API_KEY`. Otherwise keep
-`SDR_USE_OPENAI=false` for deterministic local/mock SDR replies.
+OpenAI is server-only. `OPENAI_API_KEY` is required only when at least one real
+OpenAI mode is enabled:
+
+```bash
+DEV_MOCK_AI=false             # real website generation
+OUTREACH_USE_OPENAI=true      # real outreach drafts
+DEV_MOCK_SDR=false
+SDR_USE_OPENAI=true           # real SDR analysis
+```
+
+Otherwise keep `DEV_MOCK_AI=true`, `OUTREACH_USE_OPENAI=false`,
+`DEV_MOCK_SDR=true`, and `SDR_USE_OPENAI=false` for mock/deterministic local
+and smoke-test behavior. Review OpenAI billing/quota before enabling real modes
+in production.
+
+`OPENAI_TIMEOUT_MS` and `OPENAI_MAX_OUTPUT_TOKENS` provide cost and latency
+controls. Start with the defaults unless production logs show a clear reason to
+change them.
 
 ## Real Google Places Lead Finder
 

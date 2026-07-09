@@ -1,10 +1,14 @@
 import "server-only";
 
+import { getAIConfig } from "@/lib/ai/ai-config";
+import { logSanitizedOpenAIError } from "@/lib/ai/openai-errors";
+import { generateStructuredJSON } from "@/lib/ai/openai-client";
 import type {
   SDRAnalysisResult,
   SDRAnalyzeInput,
   SDRIntent,
 } from "@/types/sdr";
+import { SDR_INTENTS, isSDRIntent } from "@/types/sdr";
 
 type SDRAnalyzer = {
   analyze(input: SDRAnalyzeInput): Promise<SDRAnalysisResult>;
@@ -16,6 +20,49 @@ const HOT_INTENTS: SDRIntent[] = [
   "needs_changes",
   "wants_call",
 ];
+
+type OpenAISDRAnalysis = {
+  admin_notes: string;
+  confidence: number;
+  conversation_summary: string;
+  detected_intent: string;
+  handoff_required: boolean;
+  safety_flags: string[];
+  suggested_reply: string;
+};
+
+const openAISDRSchema = {
+  type: "object",
+  properties: {
+    detected_intent: {
+      type: "string",
+      enum: SDR_INTENTS,
+    },
+    confidence: {
+      type: "number",
+      minimum: 0,
+      maximum: 1,
+    },
+    handoff_required: { type: "boolean" },
+    conversation_summary: { type: "string" },
+    suggested_reply: { type: "string" },
+    admin_notes: { type: "string" },
+    safety_flags: {
+      type: "array",
+      items: { type: "string" },
+    },
+  },
+  required: [
+    "detected_intent",
+    "confidence",
+    "handoff_required",
+    "conversation_summary",
+    "suggested_reply",
+    "admin_notes",
+    "safety_flags",
+  ],
+  additionalProperties: false,
+} as const;
 
 function compact(value: string | null | undefined) {
   return value?.trim() || null;
@@ -31,6 +78,14 @@ function businessName(input: SDRAnalyzeInput) {
 
 function includesAny(message: string, phrases: string[]) {
   return phrases.some((phrase) => message.includes(phrase));
+}
+
+function clampConfidence(value: number) {
+  if (!Number.isFinite(value)) {
+    return 0.5;
+  }
+
+  return Math.min(Math.max(value, 0), 1);
 }
 
 function detectIntent(message: string): SDRIntent {
@@ -143,17 +198,121 @@ class DeterministicSDRAnalyzer implements SDRAnalyzer {
   }
 }
 
-class FutureOpenAISDRAnalyzer implements SDRAnalyzer {
+function messageHistory(input: SDRAnalyzeInput) {
+  return (input.previousMessages ?? []).slice(-8).map((message) => ({
+    body: message.body,
+    created_at: message.created_at,
+    direction: message.direction,
+    role: message.sender_role,
+  }));
+}
+
+function buildSDRPrompt(input: SDRAnalyzeInput) {
+  return `Analyze this inbound client reply for a manual AI website preview sales workflow.
+
+Business context:
+${JSON.stringify(
+  {
+    business_name: businessName(input),
+    business_type: input.business?.business_type ?? null,
+    city: input.business?.city ?? null,
+    website_slug: input.website?.slug ?? null,
+    outreach_status: input.website?.outreach_status ?? null,
+  },
+  null,
+  2,
+)}
+
+Recent message history:
+${JSON.stringify(messageHistory(input), null, 2)}
+
+Inbound reply:
+${input.message}
+
+Rules:
+- Output only structured JSON matching the schema.
+- detected_intent must be one of: ${SDR_INTENTS.join(", ")}.
+- Set handoff_required=true for interested, price_question, needs_changes, or wants_call.
+- Set handoff_required=false for not_interested, spam, and already_has_website unless the reply explicitly asks for a call or price.
+- If the reply says stop, unsubscribe, remove me, or not interested, use detected_intent="not_interested", set handoff_required=false, and suggest a polite closure with no further follow-up.
+- Do not pretend an email, SMS, payment, or task will be sent automatically.
+- Suggested replies must be short, honest, and suitable for admin review before manual sending.
+- safety_flags should mention compliance risks such as unsubscribe request, hostile message, spam, or unclear consent when relevant.`;
+}
+
+function normalizeOpenAISDRResult(
+  generated: OpenAISDRAnalysis,
+  input: SDRAnalyzeInput,
+): SDRAnalysisResult {
+  const intent = isSDRIntent(generated.detected_intent)
+    ? generated.detected_intent
+    : "unclear";
+  let handoffRequired = generated.handoff_required;
+
+  if (intent === "not_interested" || intent === "spam") {
+    handoffRequired = false;
+  } else if (HOT_INTENTS.includes(intent)) {
+    handoffRequired = true;
+  }
+
+  return {
+    adminNotes: generated.admin_notes.trim(),
+    confidence: clampConfidence(generated.confidence),
+    handoffRequired,
+    intent,
+    reasoning: generated.admin_notes.trim(),
+    reply: {
+      body: generated.suggested_reply.trim() || replyForIntent(intent, input),
+    },
+    safetyFlags: generated.safety_flags
+      .map((flag) => flag.trim())
+      .filter(Boolean),
+    summary: generated.conversation_summary.trim(),
+  };
+}
+
+class OpenAISDRAnalyzer implements SDRAnalyzer {
   async analyze(input: SDRAnalyzeInput): Promise<SDRAnalysisResult> {
-    return new DeterministicSDRAnalyzer().analyze(input);
+    const fallback = new DeterministicSDRAnalyzer();
+
+    try {
+      const generated = await generateStructuredJSON<OpenAISDRAnalysis>({
+        feature: "SDR reply analysis",
+        maxOutputTokens: 1200,
+        schema: openAISDRSchema,
+        schemaName: "sdr_reply_analysis",
+        system:
+          "You classify inbound replies for a manual website preview sales workflow. Return only structured JSON matching the schema.",
+        user: buildSDRPrompt(input),
+      });
+
+      return normalizeOpenAISDRResult(generated, input);
+    } catch (error) {
+      logSanitizedOpenAIError("SDR reply analysis", error);
+
+      const deterministic = await fallback.analyze(input);
+
+      return {
+        ...deterministic,
+        adminNotes:
+          error instanceof Error
+            ? `OpenAI SDR analysis failed; deterministic fallback used. ${error.message}`
+            : "OpenAI SDR analysis failed; deterministic fallback used.",
+        safetyFlags: [
+          ...(deterministic.safetyFlags ?? []),
+          "openai_fallback_used",
+        ],
+      };
+    }
   }
 }
 
 export function getSDRAnalyzer(): SDRAnalyzer {
-  const useOpenAI = process.env.SDR_USE_OPENAI === "true";
+  const config = getAIConfig();
+  const useOpenAI = config.sdrUsesOpenAI;
 
   if (useOpenAI) {
-    return new FutureOpenAISDRAnalyzer();
+    return new OpenAISDRAnalyzer();
   }
 
   return new DeterministicSDRAnalyzer();

@@ -45,6 +45,7 @@ outreach, autonomous SDR workflows, payments, or custom domains.
    DEV_MOCK_AI=true
    DEV_MOCK_PLACES=true
    DEV_MOCK_SDR=true
+   OUTREACH_USE_OPENAI=false
    SDR_USE_OPENAI=false
 
    HANDOFF_API_SECRET=
@@ -54,6 +55,8 @@ outreach, autonomous SDR workflows, payments, or custom domains.
    APP_BASE_URL=
 
    OPENAI_MODEL=gpt-4.1-mini
+   OPENAI_TIMEOUT_MS=30000
+   OPENAI_MAX_OUTPUT_TOKENS=4000
    ```
 
 5. Start the app:
@@ -112,7 +115,13 @@ Use `OPENAI_API_KEY` only when you want real AI generation:
 DEV_MOCK_AI=false
 OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-4.1-mini
+OPENAI_TIMEOUT_MS=30000
+OPENAI_MAX_OUTPUT_TOKENS=4000
 ```
+
+Real website generation uses the OpenAI Responses API with structured JSON
+output and the same `GeneratedWebsiteContent` validator. It never stores
+arbitrary HTML.
 
 ## Phase 3 Features
 
@@ -439,6 +448,18 @@ Suggested replies are drafts. Admin must review before sending, avoid
 misrepresenting identity, respect opt-out requests, and stop messaging if the
 client says they are not interested.
 
+To test real OpenAI SDR analysis, set:
+
+```bash
+DEV_MOCK_SDR=false
+SDR_USE_OPENAI=true
+OPENAI_API_KEY=sk-...
+```
+
+If OpenAI analysis fails because of quota, rate limits, timeout, or invalid
+output, the app logs a sanitized server warning and uses the deterministic SDR
+fallback.
+
 ## Phase 10 Features
 
 - Server-side environment validation helpers in `lib/env.ts`
@@ -554,6 +575,50 @@ Recommended accuracy test queries:
 
 If a niche has no exact mapping, Lead Finder falls back to broad text search and
 shows a warning in the results.
+
+## Phase 13 Features
+
+- Central server-only OpenAI helpers in `lib/ai`
+- Real OpenAI website generation when `DEV_MOCK_AI=false`
+- Optional OpenAI outreach drafts when `OUTREACH_USE_OPENAI=true`
+- Optional OpenAI SDR intent analysis when `DEV_MOCK_SDR=false` and
+  `SDR_USE_OPENAI=true`
+- Timeout and output token controls with `OPENAI_TIMEOUT_MS` and
+  `OPENAI_MAX_OUTPUT_TOKENS`
+- Sanitized OpenAI errors for missing keys, quota, rate limits, invalid JSON,
+  schema validation failures, and timeouts
+- `/admin/production` shows real AI mode readiness without exposing secrets
+
+Default local and smoke-test values keep real OpenAI disabled:
+
+```bash
+DEV_MOCK_AI=true
+OUTREACH_USE_OPENAI=false
+DEV_MOCK_SDR=true
+SDR_USE_OPENAI=false
+```
+
+Enable real website generation only after adding billing/quota to the OpenAI
+project:
+
+```bash
+DEV_MOCK_AI=false
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4.1-mini
+```
+
+Enable optional OpenAI outreach drafts:
+
+```bash
+OUTREACH_USE_OPENAI=true
+OPENAI_API_KEY=sk-...
+```
+
+Open `/admin/production` after changing env vars. The OpenAI Production Modes
+section should show which features are mocked, deterministic, enabled, or
+missing required configuration.
+
+Phase 13 does not require a Supabase migration.
 
 ## Notes
 

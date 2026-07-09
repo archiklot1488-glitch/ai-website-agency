@@ -153,10 +153,29 @@ export default async function ProductionReadinessPage() {
   const readiness = await getDeploymentReadiness();
   const publicStatus = getPublicEnvStatus();
   const deploymentItems = deploymentContextItems({ readiness });
+  const aiModeItems = readiness.items.filter((item) =>
+    [
+      "DEV_MOCK_AI",
+      "OPENAI_API_KEY",
+      "OPENAI_MODEL",
+      "OPENAI_TIMEOUT_MS",
+      "OPENAI_MAX_OUTPUT_TOKENS",
+      "OUTREACH_USE_OPENAI",
+      "DEV_MOCK_SDR",
+      "SDR_USE_OPENAI",
+      "REAL_WEBSITE_AI",
+      "REAL_OUTREACH_AI",
+      "REAL_SDR_AI",
+    ].includes(item.key),
+  );
   const mockModeItems = readiness.items.filter((item) =>
-    ["DEV_MOCK_AI", "DEV_MOCK_PLACES", "DEV_MOCK_SDR", "SDR_USE_OPENAI"].includes(
-      item.key,
-    ),
+    [
+      "DEV_MOCK_AI",
+      "DEV_MOCK_PLACES",
+      "DEV_MOCK_SDR",
+      "OUTREACH_USE_OPENAI",
+      "SDR_USE_OPENAI",
+    ].includes(item.key),
   );
 
   return (
@@ -221,6 +240,21 @@ export default async function ProductionReadinessPage() {
           </h2>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             {readiness.items.map((item) => (
+              <StatusCard item={item} key={item.key} />
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-8">
+          <h2 className="text-xl font-semibold text-stone-950">
+            OpenAI Production Modes
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600">
+            Real website generation, outreach drafting, and SDR analysis run
+            server-side only. API keys are never shown here.
+          </p>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            {aiModeItems.map((item) => (
               <StatusCard item={item} key={item.key} />
             ))}
           </div>

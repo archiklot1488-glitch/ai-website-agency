@@ -1,6 +1,7 @@
 import "server-only";
 
 import { validateGeneratedWebsiteContent } from "@/lib/generated-website-validator";
+import { getServerEnv } from "@/lib/env";
 import type { Business } from "@/types/database";
 import type { GeneratedWebsiteContent } from "@/types/generated-website";
 
@@ -22,7 +23,7 @@ const colorPalettes = [
 ];
 
 function isMockAiEnabled() {
-  return process.env.DEV_MOCK_AI?.trim().toLowerCase() === "true";
+  return getServerEnv().devMockAi;
 }
 
 function hashValue(value: string) {
