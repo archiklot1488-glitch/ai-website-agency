@@ -4,6 +4,7 @@ export type LeadSearchInput = {
   niche: string;
   city: string;
   country: string | null;
+  includedType?: string | null;
   maxResults: number;
 };
 
@@ -34,6 +35,7 @@ export type LeadCandidate = {
   leadScore: number;
   qualification: string | null;
   rawData: Json | null;
+  signals?: string[];
   importedBusinessId?: string | null;
 };
 
@@ -41,6 +43,13 @@ export type LeadSearchResult = {
   provider: string;
   query: string;
   candidates: LeadCandidate[];
+};
+
+export type LeadFinderProviderStatus = {
+  devMockPlaces: "enabled" | "disabled";
+  googlePlacesApiKey: "configured" | "missing";
+  mode: "Mock Places" | "Google Places";
+  ready: boolean;
 };
 
 export type LeadFinderProvider = {

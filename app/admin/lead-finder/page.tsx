@@ -5,6 +5,7 @@ import { LeadSearchForm } from "@/components/lead-finder/lead-search-form";
 import { logoutAction } from "@/app/admin/actions";
 import { isAdminAuthenticated, isAdminConfigured } from "@/lib/admin-auth";
 import { getLeadSearchWithCandidates } from "@/lib/lead-finder/searches";
+import { getLeadFinderProviderStatus } from "@/lib/lead-finder/providers";
 
 type LeadFinderPageProps = {
   searchParams: Promise<{
@@ -38,6 +39,7 @@ export default async function LeadFinderPage({
   const leadSearch = searchId
     ? await getLeadSearchWithCandidates(searchId)
     : null;
+  const providerStatus = getLeadFinderProviderStatus();
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-7xl px-6 py-8 lg:px-8">
@@ -70,7 +72,7 @@ export default async function LeadFinderPage({
       </header>
 
       <div className="grid gap-8 py-8">
-        <LeadSearchForm />
+        <LeadSearchForm providerStatus={providerStatus} />
         <LeadResults
           importError={firstValue(query.import_error)}
           importedBusinessId={firstValue(query.imported)}

@@ -40,10 +40,44 @@ function candidateToInsert(
   };
 }
 
+function normalizeIdentity(value: string | null | undefined) {
+  return (value ?? "")
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .replace(/\/$/, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function dedupeCandidates(candidates: LeadCandidate[]) {
+  const seen = new Set<string>();
+
+  return candidates.filter((candidate) => {
+    const key = candidate.providerPlaceId
+      ? `${candidate.provider}:${candidate.providerPlaceId}`
+      : [
+          candidate.provider,
+          normalizeIdentity(candidate.businessName),
+          normalizeIdentity(candidate.city),
+          normalizeIdentity(candidate.address),
+        ].join(":");
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+}
+
 export async function createLeadSearch(input: LeadSearchInput) {
   const provider = getLeadFinderProvider();
   const result = await provider.searchBusinesses(input);
   const supabase = createSupabaseServerClient();
+  const candidates = dedupeCandidates(result.candidates);
 
   const { data: leadSearch, error: searchError } = await supabase
     .from("lead_searches")
@@ -54,7 +88,7 @@ export async function createLeadSearch(input: LeadSearchInput) {
       country: input.country,
       provider: result.provider,
       status: "completed",
-      result_count: result.candidates.length,
+      result_count: candidates.length,
     })
     .select("*")
     .single();
@@ -63,11 +97,11 @@ export async function createLeadSearch(input: LeadSearchInput) {
     throw new Error(searchError?.message || "Lead search could not be saved.");
   }
 
-  if (result.candidates.length > 0) {
+  if (candidates.length > 0) {
     const { error: candidatesError } = await supabase
       .from("lead_candidates")
       .insert(
-        result.candidates.map((candidate) =>
+        candidates.map((candidate) =>
           candidateToInsert(leadSearch.id, candidate),
         ),
       );
@@ -112,6 +146,9 @@ export async function getLeadSearchWithCandidates(
 
 async function findDuplicateBusiness(candidate: LeadCandidateRow) {
   const supabase = createSupabaseServerClient();
+  const normalizedCandidateName = normalizeIdentity(candidate.business_name);
+  const normalizedCandidateCity = normalizeIdentity(candidate.city);
+  const normalizedCandidateWebsite = normalizeIdentity(candidate.website_url);
 
   if (candidate.provider_place_id) {
     const { data, error } = await supabase
@@ -129,18 +166,52 @@ async function findDuplicateBusiness(candidate: LeadCandidateRow) {
     }
   }
 
-  const { data, error } = await supabase
+  if (candidate.website_url) {
+    const { data, error } = await supabase
+      .from("businesses")
+      .select("id")
+      .eq("website_url", candidate.website_url)
+      .maybeSingle();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (data) {
+      return data.id;
+    }
+  }
+
+  let query = supabase
     .from("businesses")
-    .select("id")
-    .eq("business_name", candidate.business_name)
-    .eq("city", candidate.city ?? "")
-    .maybeSingle();
+    .select("id,business_name,city,website_url")
+    .ilike("business_name", candidate.business_name)
+    .limit(25);
+
+  if (candidate.city) {
+    query = query.ilike("city", candidate.city);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(error.message);
   }
 
-  return data?.id ?? null;
+  const duplicate = (data ?? []).find((business) => {
+    const namesMatch =
+      normalizeIdentity(business.business_name) === normalizedCandidateName;
+    const citiesMatch =
+      !normalizedCandidateCity ||
+      normalizeIdentity(business.city) === normalizedCandidateCity;
+    const websitesMatch =
+      normalizedCandidateWebsite &&
+      normalizeIdentity(business.website_url) === normalizedCandidateWebsite;
+
+    return websitesMatch || (namesMatch && citiesMatch);
+  });
+
+  return duplicate?.id ?? null;
 }
 
 export async function importLeadCandidate(candidateId: string) {
@@ -181,9 +252,13 @@ export async function importLeadCandidate(candidateId: string) {
     country: candidate.country,
     phone: candidate.phone,
     website_url: candidate.website_url,
-    description: candidate.qualification
-      ? `Imported from Lead Finder. ${candidate.qualification}`
-      : "Imported from Lead Finder.",
+    description: [
+      "Imported from Lead Finder.",
+      candidate.address ? `Address from Places: ${candidate.address}.` : null,
+      candidate.qualification,
+    ]
+      .filter(Boolean)
+      .join(" "),
     status: "draft",
     source: candidate.provider,
     source_place_id: candidate.provider_place_id,
