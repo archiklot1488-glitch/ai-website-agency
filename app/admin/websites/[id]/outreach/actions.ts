@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/admin-auth";
 import {
   copyOutreachMessage,
@@ -8,6 +9,7 @@ import {
   markOutreachMessageSent,
   saveDraftOutreachMessage,
 } from "@/lib/outreach";
+import { createOrOpenSDRConversationForWebsite } from "@/lib/sdr/conversations";
 import type {
   OutreachChannel,
   OutreachMessageType,
@@ -201,4 +203,27 @@ export async function saveInboundReplyAction(
         error instanceof Error ? error.message : "Reply could not be saved.",
     };
   }
+}
+
+export async function startWebsiteSDRConversationAction(formData: FormData) {
+  const isAdmin = await requireAdmin();
+
+  if (!isAdmin) {
+    redirect("/admin");
+  }
+
+  const rawWebsiteId = formData.get("website_id");
+  const websiteId = compact(
+    typeof rawWebsiteId === "string" ? rawWebsiteId : null,
+  );
+
+  if (!websiteId) {
+    throw new Error("Website id is required.");
+  }
+
+  const conversation = await createOrOpenSDRConversationForWebsite(websiteId);
+
+  revalidatePath("/admin/sdr");
+  revalidatePath(`/admin/sdr/${conversation.id}`);
+  redirect(`/admin/sdr/${conversation.id}`);
 }
