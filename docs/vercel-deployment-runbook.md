@@ -1,8 +1,8 @@
 # Vercel Deployment Runbook
 
 This runbook deploys AI Website Agency Automation to Vercel with a production
-Supabase project. Phase 12 does not add a database migration or require paid
-OpenAI/Google API calls for the first deployment.
+Supabase project. Phase 12.1 keeps mock mode available for the first deployment
+and adds one nullable Lead Finder metadata migration.
 
 ## Deployment Approach
 
@@ -97,6 +97,14 @@ After redeploy:
 5. Run a small query such as `plumber` in `Austin` with max results `5`.
 6. Import one candidate and confirm it appears in `/admin`.
 
+Phase 12.1 maps common niches to supported Google `includedType` values and
+sends `strictTypeFiltering=true` only when a mapping is available. Unsupported
+niches, including cleaning/HVAC/landscaping/pest control, use text search plus
+filtering and do not send invalid included types. If no mapping is found, the
+admin UI shows a text-search warning. Results are filtered to reject streets,
+addresses, routes, localities, political areas, permanently closed places, and
+weak non-business records.
+
 Google Places API may incur billing costs and can hit quota/rate limits. Lead
 Finder caps searches at 20 results and uses a limited FieldMask for cost control:
 
@@ -128,7 +136,14 @@ review text, AI summaries, or atmosphere fields for lead searches.
 4. Keep Row Level Security enabled.
 5. Use the service role key only in Vercel server environment variables.
 
-Phase 12 does not require a new Supabase migration.
+For existing Supabase databases, Phase 12.1 requires:
+
+```sql
+-- database/migrations/phase12-1-lead-search-metadata.sql
+```
+
+The migration adds nullable Lead Finder search metadata and does not drop
+existing data.
 
 ## Deploy From GitHub To Vercel
 

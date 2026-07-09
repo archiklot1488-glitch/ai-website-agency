@@ -144,8 +144,11 @@ create table if not exists public.lead_searches (
   provider text not null default 'mock',
   status text not null default 'completed',
   result_count integer default 0,
+  metadata jsonb,
   created_at timestamp with time zone not null default timezone('utc'::text, now())
 );
+
+alter table public.lead_searches add column if not exists metadata jsonb;
 
 create table if not exists public.lead_candidates (
   id uuid primary key default gen_random_uuid(),
