@@ -14,9 +14,19 @@ export type DeploymentReadinessItem = {
 
 export type DeploymentReadiness = {
   database: DeploymentReadinessItem;
+  deployment: VercelDeploymentInfo;
   environmentName: string;
   isReady: boolean;
   items: DeploymentReadinessItem[];
+};
+
+export type VercelDeploymentInfo = {
+  appBaseUrlConfigured: boolean;
+  deploymentUrlDetected: boolean;
+  isVercel: boolean;
+  nextPublicAppUrlConfigured: boolean;
+  productionUrlDetected: boolean;
+  vercelEnvironment: string;
 };
 
 const REQUIRED_SERVER_ENV = [
@@ -26,6 +36,8 @@ const REQUIRED_SERVER_ENV = [
   "ADMIN_PASSWORD",
   "HANDOFF_API_SECRET",
   "SDR_API_SECRET",
+  "APP_BASE_URL",
+  "NEXT_PUBLIC_APP_URL",
 ] as const;
 
 function raw(name: string) {
@@ -90,12 +102,32 @@ export function getServerEnv() {
   };
 }
 
+export function getVercelDeploymentInfo(): VercelDeploymentInfo {
+  const vercelEnvironment = raw("VERCEL_ENV");
+  const deploymentUrl = raw("VERCEL_URL") || raw("VERCEL_BRANCH_URL");
+  const productionUrl = raw("VERCEL_PROJECT_PRODUCTION_URL");
+
+  return {
+    appBaseUrlConfigured: configured("APP_BASE_URL"),
+    deploymentUrlDetected: deploymentUrl.length > 0,
+    isVercel:
+      raw("VERCEL") === "1" ||
+      vercelEnvironment.length > 0 ||
+      deploymentUrl.length > 0 ||
+      productionUrl.length > 0,
+    nextPublicAppUrlConfigured: configured("NEXT_PUBLIC_APP_URL"),
+    productionUrlDetected: productionUrl.length > 0,
+    vercelEnvironment: vercelEnvironment || "not detected",
+  };
+}
+
 export function getPublicEnvStatus() {
   const env = getServerEnv();
+  const deployment = getVercelDeploymentInfo();
 
   return {
     adminPassword: configuredDetail("ADMIN_PASSWORD"),
-    appBaseUrl: env.appBaseUrl || env.nextPublicAppUrl ? "configured" : "missing",
+    appBaseUrl: configuredDetail("APP_BASE_URL"),
     devMockAi: env.devMockAi ? "enabled" : "disabled",
     devMockPlaces: env.devMockPlaces ? "enabled" : "disabled",
     devMockSdr: env.devMockSdr ? "enabled" : "disabled",
@@ -108,6 +140,13 @@ export function getPublicEnvStatus() {
     supabaseAnonKey: configuredDetail("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
     supabaseServiceRoleKey: configuredDetail("SUPABASE_SERVICE_ROLE_KEY"),
     supabaseUrl: configuredDetail("NEXT_PUBLIC_SUPABASE_URL"),
+    nextPublicAppUrl: configuredDetail("NEXT_PUBLIC_APP_URL"),
+    vercelDeploymentUrl: deployment.deploymentUrlDetected ? "detected" : "not detected",
+    vercelEnvironment: deployment.vercelEnvironment,
+    vercelProjectProductionUrl: deployment.productionUrlDetected
+      ? "detected"
+      : "not detected",
+    vercelRuntime: deployment.isVercel ? "detected" : "not detected",
   };
 }
 
@@ -159,12 +198,25 @@ function requiredEnvItems(): DeploymentReadinessItem[] {
       configured("SDR_API_SECRET") ? "ready" : "missing",
       configuredDetail("SDR_API_SECRET"),
     ),
+    item(
+      "APP_BASE_URL",
+      "App base URL",
+      configured("APP_BASE_URL") ? "ready" : "missing",
+      configuredDetail("APP_BASE_URL"),
+    ),
+    item(
+      "NEXT_PUBLIC_APP_URL",
+      "Public app URL",
+      configured("NEXT_PUBLIC_APP_URL") ? "ready" : "missing",
+      configuredDetail("NEXT_PUBLIC_APP_URL"),
+    ),
   ];
 }
 
 function modeItems(): DeploymentReadinessItem[] {
   const env = getServerEnv();
   const isProduction = env.nodeEnv === "production";
+  const deployment = getVercelDeploymentInfo();
 
   return [
     item(
@@ -186,6 +238,12 @@ function modeItems(): DeploymentReadinessItem[] {
       env.devMockSdr ? "enabled" : "disabled",
     ),
     item(
+      "SDR_USE_OPENAI",
+      "SDR OpenAI mode",
+      env.sdrUseOpenAi && !env.openAiApiKey ? "warning" : "optional",
+      env.sdrUseOpenAi ? "enabled" : "disabled",
+    ),
+    item(
       "OPENAI_API_KEY",
       "OpenAI API key",
       env.openAiApiKey ? "ready" : env.devMockAi ? "optional" : "warning",
@@ -198,10 +256,20 @@ function modeItems(): DeploymentReadinessItem[] {
       env.googlePlacesApiKey ? "configured" : "missing",
     ),
     item(
-      "APP_BASE_URL",
-      "App base URL",
-      env.appBaseUrl || env.nextPublicAppUrl ? "ready" : "optional",
-      env.appBaseUrl || env.nextPublicAppUrl ? "configured" : "missing",
+      "VERCEL_ENV",
+      "Vercel environment",
+      deployment.isVercel ? "ready" : "optional",
+      deployment.vercelEnvironment,
+    ),
+    item(
+      "VERCEL_URL",
+      "Vercel deployment URL",
+      deployment.deploymentUrlDetected
+        ? "ready"
+        : deployment.isVercel
+          ? "warning"
+          : "optional",
+      deployment.deploymentUrlDetected ? "detected" : "not detected",
     ),
     item("NODE_ENV", "Current NODE_ENV", "ready", env.nodeEnv),
   ];
@@ -258,11 +326,13 @@ export async function checkDatabaseConnectivity(): Promise<DeploymentReadinessIt
 
 export async function getDeploymentReadiness(): Promise<DeploymentReadiness> {
   const database = await checkDatabaseConnectivity();
+  const deployment = getVercelDeploymentInfo();
   const items = [...requiredEnvItems(), ...modeItems(), database];
   const isReady = items.every((entry) => entry.status !== "missing");
 
   return {
     database,
+    deployment,
     environmentName: getServerEnv().nodeEnv,
     isReady,
     items,

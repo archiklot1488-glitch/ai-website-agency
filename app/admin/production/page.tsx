@@ -87,6 +87,58 @@ function StatusCard({ item }: { item: DeploymentReadinessItem }) {
   );
 }
 
+function deploymentContextItems({
+  readiness,
+}: {
+  readiness: Awaited<ReturnType<typeof getDeploymentReadiness>>;
+}): DeploymentReadinessItem[] {
+  const healthReady = readiness.isReady && readiness.database.status === "ready";
+  const deployment = readiness.deployment;
+
+  return [
+    {
+      detail: deployment.isVercel ? "detected" : "not detected",
+      key: "vercel-runtime",
+      label: "Vercel runtime",
+      status: deployment.isVercel ? "ready" : "optional",
+    },
+    {
+      detail: deployment.vercelEnvironment,
+      key: "vercel-environment",
+      label: "Vercel environment",
+      status: deployment.isVercel ? "ready" : "optional",
+    },
+    {
+      detail: deployment.deploymentUrlDetected ? "detected" : "not detected",
+      key: "vercel-deployment-url",
+      label: "Deployment URL",
+      status: deployment.deploymentUrlDetected
+        ? "ready"
+        : deployment.isVercel
+          ? "warning"
+          : "optional",
+    },
+    {
+      detail: deployment.appBaseUrlConfigured ? "configured" : "missing",
+      key: "app-base-url",
+      label: "APP_BASE_URL",
+      status: deployment.appBaseUrlConfigured ? "ready" : "missing",
+    },
+    {
+      detail: deployment.nextPublicAppUrlConfigured ? "configured" : "missing",
+      key: "next-public-app-url",
+      label: "NEXT_PUBLIC_APP_URL",
+      status: deployment.nextPublicAppUrlConfigured ? "ready" : "missing",
+    },
+    {
+      detail: healthReady ? "/api/health ready" : "/api/health not ready",
+      key: "health-status",
+      label: "Health check status",
+      status: healthReady ? "ready" : readiness.isReady ? "warning" : "missing",
+    },
+  ];
+}
+
 export default async function ProductionReadinessPage() {
   const isAuthenticated = await isAdminAuthenticated();
 
@@ -100,6 +152,12 @@ export default async function ProductionReadinessPage() {
 
   const readiness = await getDeploymentReadiness();
   const publicStatus = getPublicEnvStatus();
+  const deploymentItems = deploymentContextItems({ readiness });
+  const mockModeItems = readiness.items.filter((item) =>
+    ["DEV_MOCK_AI", "DEV_MOCK_PLACES", "DEV_MOCK_SDR", "SDR_USE_OPENAI"].includes(
+      item.key,
+    ),
+  );
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-7xl px-6 py-8 lg:px-8">
@@ -148,10 +206,32 @@ export default async function ProductionReadinessPage() {
 
         <section className="mt-8">
           <h2 className="text-xl font-semibold text-stone-950">
+            Vercel Deployment Context
+          </h2>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            {deploymentItems.map((item) => (
+              <StatusCard item={item} key={item.key} />
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-8">
+          <h2 className="text-xl font-semibold text-stone-950">
             Environment Checklist
           </h2>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             {readiness.items.map((item) => (
+              <StatusCard item={item} key={item.key} />
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-8">
+          <h2 className="text-xl font-semibold text-stone-950">
+            Current Mock Modes
+          </h2>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            {mockModeItems.map((item) => (
               <StatusCard item={item} key={item.key} />
             ))}
           </div>

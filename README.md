@@ -70,6 +70,7 @@ outreach, autonomous SDR workflows, payments, or custom domains.
 npm run dev
 npm run build
 npm run start
+npm run smoke:prod
 npm run typecheck
 npm run verify
 ```
@@ -437,6 +438,43 @@ client says they are not interested.
 - `npm run verify` script for typecheck plus build
 
 Phase 10 does not require a Supabase migration.
+
+## Phase 11 Features
+
+- Vercel deployment runbook at
+  [`docs/vercel-deployment-runbook.md`](docs/vercel-deployment-runbook.md)
+- Production launch checklist at
+  [`docs/production-launch-checklist.md`](docs/production-launch-checklist.md)
+- Production smoke script for public safe endpoints:
+
+  ```bash
+  APP_BASE_URL=https://YOUR_DOMAIN.com npm run smoke:prod
+  ```
+
+- `/admin/production` shows Vercel runtime status, app URL configuration, mock
+  modes, and health-check status without exposing secret values
+- Required production app URL variables are tracked in deployment readiness:
+  `APP_BASE_URL` and `NEXT_PUBLIC_APP_URL`
+
+Deploy to Vercel from the GitHub repository with the default Next.js settings.
+Configure environment variables in the Vercel dashboard instead of committing
+local `.env.local` values. For the first production smoke test, keep:
+
+```bash
+DEV_MOCK_AI=true
+DEV_MOCK_PLACES=true
+DEV_MOCK_SDR=true
+SDR_USE_OPENAI=false
+```
+
+Then run:
+
+```bash
+npm run verify
+APP_BASE_URL=https://YOUR_DOMAIN.com npm run smoke:prod
+```
+
+Phase 11 does not require a Supabase migration.
 
 ## Notes
 

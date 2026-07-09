@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "smoke:prod": "node scripts/smoke-test-production.mjs",
     "typecheck": "next typegen && tsc --noEmit",
     "verify": "npm run typecheck && npm run build"
   },
