@@ -1,6 +1,9 @@
 # Production Deployment
 
-This guide prepares AI Website Agency Automation for Vercel with Supabase.
+This guide prepares AI Website Agency Automation for Vercel with Supabase. For
+the Phase 11 launch workflow, use
+[`docs/vercel-deployment-runbook.md`](vercel-deployment-runbook.md) and
+[`docs/production-launch-checklist.md`](production-launch-checklist.md).
 
 ## Vercel Deployment
 
@@ -31,6 +34,8 @@ SUPABASE_SERVICE_ROLE_KEY=
 ADMIN_PASSWORD=
 HANDOFF_API_SECRET=
 SDR_API_SECRET=
+APP_BASE_URL=
+NEXT_PUBLIC_APP_URL=
 ```
 
 Do not expose `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_PASSWORD`,
@@ -39,8 +44,6 @@ Do not expose `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_PASSWORD`,
 ## Optional Environment Variables
 
 ```bash
-NEXT_PUBLIC_APP_URL=
-APP_BASE_URL=
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4.1-mini
 GOOGLE_PLACES_API_KEY=
