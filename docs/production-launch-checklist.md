@@ -11,6 +11,8 @@ Use this checklist for a real Vercel launch.
 - [ ] Vercel project is connected to the GitHub repository.
 - [ ] Required environment variables are configured in Vercel.
 - [ ] Optional mock-mode variables are intentionally configured.
+- [ ] `GOOGLE_PLACES_API_KEY` is configured if `DEV_MOCK_PLACES=false`.
+- [ ] Google Places billing/quota limits are reviewed before real searches.
 - [ ] Production branch is set to `main`.
 - [ ] No `.env.local` or real secrets are committed.
 
@@ -31,6 +33,9 @@ Use this checklist for a real Vercel launch.
 - [ ] Call `/api/health`.
 - [ ] Create a test business.
 - [ ] Generate a mock website.
+- [ ] Open `/admin/lead-finder` and confirm provider mode.
+- [ ] If using real Google Places, run a small lead query with max results `5`.
+- [ ] Import one lead candidate and verify duplicate handling is acceptable.
 - [ ] Open the preview link.
 - [ ] Set the generated site live in Supabase.
 - [ ] Open `/site/[slug]`.
@@ -44,5 +49,6 @@ Use this checklist for a real Vercel launch.
 - [ ] Use Vercel's previous deployment rollback if production is unhealthy.
 - [ ] Rotate exposed secrets if needed.
 - [ ] Check Supabase for test data that needs cleanup.
+- [ ] Set `DEV_MOCK_PLACES=true` and redeploy if Google quota or billing blocks launch.
 - [ ] Re-run `/api/health` and `/admin/production` after rollback.
 - [ ] Document what failed before attempting a new deployment.

@@ -71,6 +71,17 @@ SDR_USE_OPENAI=false
 Production can still use mocks during staged testing, but `/admin/production`
 will show warnings when production mock modes are enabled.
 
+To switch Lead Finder to real Google Places after smoke testing:
+
+```bash
+GOOGLE_PLACES_API_KEY=your-google-places-key
+DEV_MOCK_PLACES=false
+```
+
+Redeploy after changing Vercel environment variables. Lead Finder calls Places
+API (New) Text Search from the server only, uses a limited FieldMask, and does
+not scrape Google Maps pages.
+
 ## Running Migrations
 
 For fresh Supabase projects, run:

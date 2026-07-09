@@ -252,8 +252,12 @@ function modeItems(): DeploymentReadinessItem[] {
     item(
       "GOOGLE_PLACES_API_KEY",
       "Google Places API key",
-      env.googlePlacesApiKey ? "ready" : env.devMockPlaces ? "optional" : "warning",
-      env.googlePlacesApiKey ? "configured" : "missing",
+      env.googlePlacesApiKey ? "ready" : env.devMockPlaces ? "optional" : "missing",
+      env.googlePlacesApiKey
+        ? "configured"
+        : env.devMockPlaces
+          ? "missing; optional while DEV_MOCK_PLACES=true"
+          : "missing; required when DEV_MOCK_PLACES=false",
     ),
     item(
       "VERCEL_ENV",

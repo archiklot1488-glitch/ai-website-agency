@@ -175,25 +175,36 @@ DEV_MOCK_PLACES=true
 Then:
 
 1. Open `/admin/lead-finder`.
-2. Search for `cleaning service` in `Austin`.
-3. Import a candidate.
-4. Open `/admin` and confirm the imported business appears.
-5. Manually click `Generate Website` when you are ready to create a preview.
+2. Search for `plumber` in `Austin`.
+3. Verify the page shows `Mock Places` and returns deterministic candidates.
+4. Import a candidate.
+5. Open `/admin` and confirm the imported business appears.
+6. Manually click `Generate Website` when you are ready to create a preview.
 
 Mock mode does not call Google and does not require `GOOGLE_PLACES_API_KEY`.
 
 ## Real Google Places Setup
 
-To use real Google Places searches:
+To use real Google Places searches locally:
 
 ```bash
 DEV_MOCK_PLACES=false
 GOOGLE_PLACES_API_KEY=your-google-api-key
 ```
 
-Enable the Places API in Google Cloud for that key. Google calls happen only on
-the server through the Lead Finder provider adapter. The app uses Places Text
-Search (New) with a minimal field mask and does not scrape Google Maps pages.
+Restart `npm run dev` after changing `.env.local`, then:
+
+1. Open `/admin/lead-finder`.
+2. Confirm the provider mode shows `Google Places`.
+3. Search for `plumber` in `Austin`.
+4. Verify real candidates show address, phone, website if present, Google Maps
+   link, rating, review count, opportunity score, and reasons.
+5. Import one candidate and confirm a business is created.
+
+Enable Places API (New) in Google Cloud for that key. Google calls happen only
+on the server through the Lead Finder provider adapter. The app uses Places Text
+Search (New) with a limited FieldMask and does not scrape Google Maps pages.
+Google Places may incur billing costs and can return quota/rate-limit errors.
 
 ## Supabase Migration
 
@@ -475,6 +486,35 @@ APP_BASE_URL=https://YOUR_DOMAIN.com npm run smoke:prod
 ```
 
 Phase 11 does not require a Supabase migration.
+
+## Phase 12 Features
+
+- Real server-side Google Places Text Search provider for Lead Finder
+- Mock Places mode remains available with `DEV_MOCK_PLACES=true`
+- Limited Google FieldMask for cost control; no wildcard fields, photos, review
+  text, AI summaries, or atmosphere fields
+- Lead Finder provider status in `/admin/lead-finder`
+- Optional Google `included_type`, country/region, and capped max results
+- Candidate scoring reasons such as missing website in Places data, phone,
+  Google Maps listing, review count, service niche, and existing website
+- Candidate dedupe before save and duplicate business detection before import
+- Google Places readiness in `/admin/production`
+
+For Vercel:
+
+```bash
+GOOGLE_PLACES_API_KEY=your-google-places-key
+DEV_MOCK_PLACES=false
+```
+
+After changing Vercel environment variables, redeploy. Open
+`/admin/production`, confirm Google Places is ready, then run a small
+`/admin/lead-finder` query and import one candidate.
+
+Phase 12 does not require a Supabase migration because the existing
+`lead_candidates` and `businesses` source fields already store Places IDs,
+URLs, ratings, phone, website, Google Maps link, score, qualification, and raw
+provider data.
 
 ## Notes
 

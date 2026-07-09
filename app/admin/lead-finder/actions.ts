@@ -64,6 +64,7 @@ export async function searchLeadCandidatesAction(
   const niche = valueFromForm(formData, "niche");
   const city = valueFromForm(formData, "city");
   const country = valueFromForm(formData, "country");
+  const includedType = valueFromForm(formData, "included_type");
   const maxResults = parseMaxResults(valueFromForm(formData, "max_results"));
 
   if (!niche) {
@@ -87,6 +88,7 @@ export async function searchLeadCandidatesAction(
       niche,
       city,
       country,
+      includedType,
       maxResults,
     });
     leadSearchId = leadSearch.id;

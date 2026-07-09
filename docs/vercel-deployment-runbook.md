@@ -1,7 +1,7 @@
 # Vercel Deployment Runbook
 
 This runbook deploys AI Website Agency Automation to Vercel with a production
-Supabase project. Phase 11 does not add a database migration or require paid
+Supabase project. Phase 12 does not add a database migration or require paid
 OpenAI/Google API calls for the first deployment.
 
 ## Deployment Approach
@@ -76,6 +76,49 @@ GOOGLE_PLACES_API_KEY=your-google-places-key
 If `SDR_USE_OPENAI=true`, configure `OPENAI_API_KEY`. Otherwise keep
 `SDR_USE_OPENAI=false` for deterministic local/mock SDR replies.
 
+## Real Google Places Lead Finder
+
+To enable real Lead Finder searches in Vercel:
+
+```bash
+GOOGLE_PLACES_API_KEY=your-google-places-key
+DEV_MOCK_PLACES=false
+```
+
+Then redeploy the Vercel project. Runtime functions receive env var changes
+only after a new deployment.
+
+After redeploy:
+
+1. Open `/admin/production`.
+2. Confirm `DEV_MOCK_PLACES` is disabled.
+3. Confirm `GOOGLE_PLACES_API_KEY` is configured.
+4. Open `/admin/lead-finder`.
+5. Run a small query such as `plumber` in `Austin` with max results `5`.
+6. Import one candidate and confirm it appears in `/admin`.
+
+Google Places API may incur billing costs and can hit quota/rate limits. Lead
+Finder caps searches at 20 results and uses a limited FieldMask for cost control:
+
+```text
+places.id,
+places.displayName,
+places.formattedAddress,
+places.location,
+places.businessStatus,
+places.primaryType,
+places.types,
+places.googleMapsUri,
+places.websiteUri,
+places.nationalPhoneNumber,
+places.internationalPhoneNumber,
+places.rating,
+places.userRatingCount
+```
+
+Do not use wildcard FieldMask values in production. Do not request photos,
+review text, AI summaries, or atmosphere fields for lead searches.
+
 ## Supabase Production Setup
 
 1. Create a production Supabase project.
@@ -85,7 +128,7 @@ If `SDR_USE_OPENAI=true`, configure `OPENAI_API_KEY`. Otherwise keep
 4. Keep Row Level Security enabled.
 5. Use the service role key only in Vercel server environment variables.
 
-Phase 11 does not require a new Supabase migration.
+Phase 12 does not require a new Supabase migration.
 
 ## Deploy From GitHub To Vercel
 
