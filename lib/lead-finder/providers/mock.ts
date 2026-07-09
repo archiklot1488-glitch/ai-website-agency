@@ -1,5 +1,9 @@
 import "server-only";
 
+import {
+  createSearchMetadata,
+  resolveGooglePlacesSearchPlan,
+} from "@/lib/lead-finder/google-search-plan";
 import { withLeadScore } from "@/lib/lead-finder/scoring";
 import type {
   LeadCandidate,
@@ -77,9 +81,8 @@ export class MockLeadFinderProvider implements LeadFinderProvider {
   readonly provider = "mock_places";
 
   async searchBusinesses(input: LeadSearchInput): Promise<LeadSearchResult> {
-    const query = `${input.niche} in ${input.city}${
-      input.country ? `, ${input.country}` : ""
-    }`;
+    const plan = resolveGooglePlacesSearchPlan(input);
+    const query = plan.textQueries[0];
     const seed = hashValue(query);
     const maxResults = Math.max(1, Math.min(input.maxResults, 20));
     const candidates: LeadCandidate[] = Array.from(
@@ -126,9 +129,14 @@ export class MockLeadFinderProvider implements LeadFinderProvider {
     );
 
     return {
+      candidates,
+      metadata: createSearchMetadata(plan, {
+        filteredOutCount: 2,
+        rawReturnedCount: candidates.length + 2,
+        savedCandidateCount: candidates.length,
+      }),
       provider: this.provider,
       query,
-      candidates,
     };
   }
 }

@@ -105,9 +105,12 @@ export function LeadSearchForm({
           <input
             className="mt-2 h-10 w-full rounded-md border border-stone-300 bg-white px-3 text-sm text-stone-950"
             name="included_type"
-            placeholder="Optional Google type, e.g. plumber"
+            placeholder="Optional valid type, e.g. plumber"
             type="text"
           />
+          <span className="mt-1 block text-xs text-stone-500">
+            Leave blank unless you know the Google includedType is supported.
+          </span>
         </label>
 
         <label className="block">

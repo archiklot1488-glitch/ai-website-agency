@@ -216,6 +216,7 @@ For an existing Supabase database, run:
 -- database/migrations/phase7-sales-handoff-pipeline.sql
 -- database/migrations/phase8-outreach-assistant.sql
 -- database/migrations/phase9-ai-sdr-handoff-core.sql
+-- database/migrations/phase12-1-lead-search-metadata.sql
 ```
 
 The migration adds nullable source fields to `businesses`, creates
@@ -224,7 +225,9 @@ existing data. The Phase 6 migration adds offer tracking fields to `websites`
 without dropping existing data. The Phase 7 migration adds deal tracking fields
 to `leads` without dropping existing data. The Phase 8 migration creates
 `outreach_messages` without dropping existing data. The Phase 9 migration
-creates SDR conversation/message tables without dropping existing data.
+creates SDR conversation/message tables without dropping existing data. The
+Phase 12.1 migration adds nullable Lead Finder search metadata without dropping
+existing data.
 
 ## Phase 5 Features
 
@@ -511,10 +514,46 @@ After changing Vercel environment variables, redeploy. Open
 `/admin/production`, confirm Google Places is ready, then run a small
 `/admin/lead-finder` query and import one candidate.
 
-Phase 12 does not require a Supabase migration because the existing
+Phase 12 itself did not require a Supabase migration because the existing
 `lead_candidates` and `businesses` source fields already store Places IDs,
 URLs, ratings, phone, website, Google Maps link, score, qualification, and raw
 provider data.
+
+## Phase 12.1 Features
+
+- User-friendly niche to Google `includedType` mapping for supported local
+  business types
+- `strictTypeFiltering=true` when an included type is resolved
+- Unsupported niches, including cleaning/HVAC/landscaping/pest control, use
+  text search plus filtering without sending invalid `includedType` values
+- Service-area business inclusion for service niches, even when text search is
+  used
+- Cleaner query planning with limited fallback queries
+- Region code support for two-letter country/region values
+- Filtering for streets, addresses, routes, localities, political areas,
+  permanently closed places, and weak non-business results
+- Deduplication by Google place id, normalized phone, and normalized
+  name/address
+- Limited two-page Google pagination with saved candidates capped by max results
+- Lead Finder diagnostics for resolved type, strict filtering, service-area
+  mode, region code, raw returned count, filtered count, and saved count
+
+Run this migration for existing Supabase databases:
+
+```sql
+-- database/migrations/phase12-1-lead-search-metadata.sql
+```
+
+Recommended accuracy test queries:
+
+- `plumber` in `Austin`, country `US`
+- `roofing` in `Miami`, country `US`
+- `dentist` in `Warsaw`, country `PL`
+- `cleaning service` in `Toronto`, country `CA`
+- `locksmith` in `London`, country `GB`
+
+If a niche has no exact mapping, Lead Finder falls back to broad text search and
+shows a warning in the results.
 
 ## Notes
 

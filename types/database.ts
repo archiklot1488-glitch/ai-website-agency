@@ -95,6 +95,7 @@ type LeadSearchRow = {
   provider: string;
   status: string;
   result_count: number;
+  metadata: Json | null;
   created_at: string;
 };
 
@@ -281,6 +282,7 @@ export type Database = {
           provider?: string;
           status?: string;
           result_count?: number;
+          metadata?: Json | null;
           created_at?: string;
         },
         Partial<LeadSearchRow>

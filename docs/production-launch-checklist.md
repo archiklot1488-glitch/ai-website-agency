@@ -7,6 +7,7 @@ Use this checklist for a real Vercel launch.
 - [ ] Main branch is clean.
 - [ ] `npm run verify` passes locally or in CI.
 - [ ] Supabase schema and migrations are applied.
+- [ ] Phase 12.1 metadata migration is applied for existing databases.
 - [ ] Supabase RLS and security settings are reviewed.
 - [ ] Vercel project is connected to the GitHub repository.
 - [ ] Required environment variables are configured in Vercel.
@@ -35,6 +36,8 @@ Use this checklist for a real Vercel launch.
 - [ ] Generate a mock website.
 - [ ] Open `/admin/lead-finder` and confirm provider mode.
 - [ ] If using real Google Places, run a small lead query with max results `5`.
+- [ ] Confirm Lead Finder shows resolved type, strict filtering, raw count,
+      filtered count, and saved count.
 - [ ] Import one lead candidate and verify duplicate handling is acceptable.
 - [ ] Open the preview link.
 - [ ] Set the generated site live in Supabase.

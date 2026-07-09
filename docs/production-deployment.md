@@ -98,9 +98,11 @@ For existing projects, run migration files in phase order:
 -- database/migrations/phase7-sales-handoff-pipeline.sql
 -- database/migrations/phase8-outreach-assistant.sql
 -- database/migrations/phase9-ai-sdr-handoff-core.sql
+-- database/migrations/phase12-1-lead-search-metadata.sql
 ```
 
-Phase 10 does not add a database migration.
+Phase 12.1 adds nullable Lead Finder search metadata and does not drop existing
+data.
 
 ## Verify Health
 

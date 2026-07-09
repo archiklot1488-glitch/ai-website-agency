@@ -43,6 +43,19 @@ export type LeadSearchResult = {
   provider: string;
   query: string;
   candidates: LeadCandidate[];
+  metadata: LeadSearchMetadata;
+};
+
+export type LeadSearchMetadata = {
+  filteredOutCount: number;
+  includePureServiceAreaBusinesses: boolean;
+  rawReturnedCount: number;
+  regionCode: string | null;
+  resolvedIncludedType: string | null;
+  savedCandidateCount: number;
+  strictTypeFiltering: boolean;
+  textQueries: string[];
+  warnings: string[];
 };
 
 export type LeadFinderProviderStatus = {

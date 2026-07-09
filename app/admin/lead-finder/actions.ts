@@ -7,6 +7,7 @@ import {
   createLeadSearch,
   importLeadCandidate,
 } from "@/lib/lead-finder/searches";
+import { validateManualIncludedType } from "@/lib/lead-finder/google-search-plan";
 import type { ActionState } from "@/types/actions";
 
 function valueFromForm(formData: FormData, key: string): string | null {
@@ -66,6 +67,7 @@ export async function searchLeadCandidatesAction(
   const country = valueFromForm(formData, "country");
   const includedType = valueFromForm(formData, "included_type");
   const maxResults = parseMaxResults(valueFromForm(formData, "max_results"));
+  const includedTypeValidation = validateManualIncludedType(includedType);
 
   if (!niche) {
     return {
@@ -81,6 +83,13 @@ export async function searchLeadCandidatesAction(
     };
   }
 
+  if (!includedTypeValidation.ok) {
+    return {
+      status: "error",
+      message: `Unsupported Google includedType "${includedTypeValidation.includedType}". Leave the field blank to use text search + filtering.`,
+    };
+  }
+
   let leadSearchId: string;
 
   try {
@@ -88,7 +97,7 @@ export async function searchLeadCandidatesAction(
       niche,
       city,
       country,
-      includedType,
+      includedType: includedTypeValidation.includedType,
       maxResults,
     });
     leadSearchId = leadSearch.id;

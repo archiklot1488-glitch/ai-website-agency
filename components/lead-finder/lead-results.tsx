@@ -2,6 +2,7 @@ import Link from "next/link";
 import { importLeadCandidateAction } from "@/app/admin/lead-finder/actions";
 import type { LeadSearchWithCandidates } from "@/lib/lead-finder/searches";
 import type { Json } from "@/types/database";
+import type { LeadSearchMetadata } from "@/types/lead-finder";
 
 type LeadResultsProps = {
   importError?: string | null;
@@ -42,6 +43,62 @@ function signalReasons(rawData: Json | null, fallback: string[]) {
   return fallback;
 }
 
+function stringArray(value: Json | undefined) {
+  return Array.isArray(value) &&
+    value.every((entry) => typeof entry === "string")
+    ? value
+    : [];
+}
+
+function parseSearchMetadata(
+  rawMetadata: Json | null,
+  fallbackSavedCount: number,
+): LeadSearchMetadata {
+  if (!isRecord(rawMetadata)) {
+    return {
+      filteredOutCount: 0,
+      includePureServiceAreaBusinesses: false,
+      rawReturnedCount: fallbackSavedCount,
+      regionCode: null,
+      resolvedIncludedType: null,
+      savedCandidateCount: fallbackSavedCount,
+      strictTypeFiltering: false,
+      textQueries: [],
+      warnings: [],
+    };
+  }
+
+  return {
+    filteredOutCount:
+      typeof rawMetadata.filteredOutCount === "number"
+        ? rawMetadata.filteredOutCount
+        : 0,
+    includePureServiceAreaBusinesses:
+      rawMetadata.includePureServiceAreaBusinesses === true,
+    rawReturnedCount:
+      typeof rawMetadata.rawReturnedCount === "number"
+        ? rawMetadata.rawReturnedCount
+        : fallbackSavedCount,
+    regionCode:
+      typeof rawMetadata.regionCode === "string" ? rawMetadata.regionCode : null,
+    resolvedIncludedType:
+      typeof rawMetadata.resolvedIncludedType === "string"
+        ? rawMetadata.resolvedIncludedType
+        : null,
+    savedCandidateCount:
+      typeof rawMetadata.savedCandidateCount === "number"
+        ? rawMetadata.savedCandidateCount
+        : fallbackSavedCount,
+    strictTypeFiltering: rawMetadata.strictTypeFiltering === true,
+    textQueries: stringArray(rawMetadata.textQueries),
+    warnings: stringArray(rawMetadata.warnings),
+  };
+}
+
+function booleanLabel(value: boolean) {
+  return value ? "on" : "off";
+}
+
 export function LeadResults({
   importError,
   importedBusinessId,
@@ -59,6 +116,8 @@ export function LeadResults({
       </div>
     );
   }
+
+  const metadata = parseSearchMetadata(leadSearch.metadata, leadSearch.result_count);
 
   return (
     <section className="space-y-4">
@@ -94,6 +153,64 @@ export function LeadResults({
           <p className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
             {importError}
           </p>
+        ) : null}
+
+        <div className="mt-5 grid gap-3 text-sm md:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-md border border-stone-200 bg-stone-50 px-3 py-2">
+            <p className="font-semibold text-stone-950">Resolved type</p>
+            <p className="mt-1 text-stone-700">
+              {metadata.resolvedIncludedType || "Broad text search"}
+            </p>
+          </div>
+          <div className="rounded-md border border-stone-200 bg-stone-50 px-3 py-2">
+            <p className="font-semibold text-stone-950">Strict filtering</p>
+            <p className="mt-1 text-stone-700">
+              {booleanLabel(metadata.strictTypeFiltering)}
+            </p>
+          </div>
+          <div className="rounded-md border border-stone-200 bg-stone-50 px-3 py-2">
+            <p className="font-semibold text-stone-950">Service-area mode</p>
+            <p className="mt-1 text-stone-700">
+              {booleanLabel(metadata.includePureServiceAreaBusinesses)}
+            </p>
+          </div>
+          <div className="rounded-md border border-stone-200 bg-stone-50 px-3 py-2">
+            <p className="font-semibold text-stone-950">Region code</p>
+            <p className="mt-1 text-stone-700">
+              {metadata.regionCode || "Not set"}
+            </p>
+          </div>
+          <div className="rounded-md border border-stone-200 bg-stone-50 px-3 py-2">
+            <p className="font-semibold text-stone-950">Raw returned</p>
+            <p className="mt-1 text-stone-700">{metadata.rawReturnedCount}</p>
+          </div>
+          <div className="rounded-md border border-stone-200 bg-stone-50 px-3 py-2">
+            <p className="font-semibold text-stone-950">Filtered</p>
+            <p className="mt-1 text-stone-700">{metadata.filteredOutCount}</p>
+          </div>
+          <div className="rounded-md border border-stone-200 bg-stone-50 px-3 py-2">
+            <p className="font-semibold text-stone-950">Saved candidates</p>
+            <p className="mt-1 text-stone-700">{metadata.savedCandidateCount}</p>
+          </div>
+          <div className="rounded-md border border-stone-200 bg-stone-50 px-3 py-2">
+            <p className="font-semibold text-stone-950">Queries tried</p>
+            <p className="mt-1 text-stone-700">
+              {metadata.textQueries.length || 1}
+            </p>
+          </div>
+        </div>
+
+        {metadata.warnings.length > 0 ? (
+          <div className="mt-4 grid gap-2">
+            {metadata.warnings.map((warning) => (
+              <p
+                className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+                key={warning}
+              >
+                {warning}
+              </p>
+            ))}
+          </div>
         ) : null}
       </div>
 

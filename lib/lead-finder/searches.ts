@@ -4,6 +4,7 @@ import { getLeadFinderProvider } from "@/lib/lead-finder/providers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type {
   BusinessInsert,
+  Json,
   LeadCandidateInsert,
   LeadCandidateRow,
   LeadSearch,
@@ -55,20 +56,29 @@ function dedupeCandidates(candidates: LeadCandidate[]) {
   const seen = new Set<string>();
 
   return candidates.filter((candidate) => {
-    const key = candidate.providerPlaceId
-      ? `${candidate.provider}:${candidate.providerPlaceId}`
-      : [
+    const keys: string[] = [
+      candidate.providerPlaceId
+        ? `${candidate.provider}:place:${candidate.providerPlaceId}`
+        : null,
+      candidate.phone
+        ? `${candidate.provider}:phone:${normalizeIdentity(candidate.phone)}`
+        : null,
+      [
           candidate.provider,
+          "name_address",
           normalizeIdentity(candidate.businessName),
-          normalizeIdentity(candidate.city),
           normalizeIdentity(candidate.address),
-        ].join(":");
+        ].join(":"),
+    ].filter((key): key is string => Boolean(key));
 
-    if (seen.has(key)) {
+    if (keys.some((key) => seen.has(key))) {
       return false;
     }
 
-    seen.add(key);
+    for (const key of keys) {
+      seen.add(key);
+    }
+
     return true;
   });
 }
@@ -78,6 +88,10 @@ export async function createLeadSearch(input: LeadSearchInput) {
   const result = await provider.searchBusinesses(input);
   const supabase = createSupabaseServerClient();
   const candidates = dedupeCandidates(result.candidates);
+  const metadata = {
+    ...result.metadata,
+    savedCandidateCount: candidates.length,
+  } satisfies Json;
 
   const { data: leadSearch, error: searchError } = await supabase
     .from("lead_searches")
@@ -89,6 +103,7 @@ export async function createLeadSearch(input: LeadSearchInput) {
       provider: result.provider,
       status: "completed",
       result_count: candidates.length,
+      metadata,
     })
     .select("*")
     .single();
