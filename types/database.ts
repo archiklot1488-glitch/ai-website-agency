@@ -139,6 +139,37 @@ type OutreachMessageRow = {
   updated_at: string;
 };
 
+type SDRConversationRow = {
+  id: string;
+  business_id: string | null;
+  website_id: string | null;
+  lead_id: string | null;
+  outreach_message_id: string | null;
+  channel: string;
+  status: string;
+  client_name: string | null;
+  client_email: string | null;
+  client_phone: string | null;
+  conversation_summary: string | null;
+  detected_intent: string | null;
+  handoff_required: boolean;
+  last_message_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type SDRMessageRow = {
+  id: string;
+  conversation_id: string;
+  direction: string;
+  sender_role: string;
+  body: string;
+  detected_intent: string | null;
+  suggested_reply: string | null;
+  analysis: Json | null;
+  created_at: string;
+};
+
 type TableDefinition<Row, Insert, Update> = {
   Row: Row;
   Insert: Insert;
@@ -301,6 +332,43 @@ export type Database = {
         },
         Partial<OutreachMessageRow>
       >;
+      sdr_conversations: TableDefinition<
+        SDRConversationRow,
+        {
+          id?: string;
+          business_id?: string | null;
+          website_id?: string | null;
+          lead_id?: string | null;
+          outreach_message_id?: string | null;
+          channel?: string;
+          status?: string;
+          client_name?: string | null;
+          client_email?: string | null;
+          client_phone?: string | null;
+          conversation_summary?: string | null;
+          detected_intent?: string | null;
+          handoff_required?: boolean;
+          last_message_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        },
+        Partial<SDRConversationRow>
+      >;
+      sdr_messages: TableDefinition<
+        SDRMessageRow,
+        {
+          id?: string;
+          conversation_id: string;
+          direction: string;
+          sender_role?: string;
+          body: string;
+          detected_intent?: string | null;
+          suggested_reply?: string | null;
+          analysis?: Json | null;
+          created_at?: string;
+        },
+        Partial<SDRMessageRow>
+      >;
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -330,3 +398,10 @@ export type OutreachMessage =
   Database["public"]["Tables"]["outreach_messages"]["Row"];
 export type OutreachMessageInsert =
   Database["public"]["Tables"]["outreach_messages"]["Insert"];
+export type SDRConversation =
+  Database["public"]["Tables"]["sdr_conversations"]["Row"];
+export type SDRConversationInsert =
+  Database["public"]["Tables"]["sdr_conversations"]["Insert"];
+export type SDRMessage = Database["public"]["Tables"]["sdr_messages"]["Row"];
+export type SDRMessageInsert =
+  Database["public"]["Tables"]["sdr_messages"]["Insert"];

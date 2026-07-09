@@ -7,6 +7,7 @@ import { InboundReplyForm } from "@/components/outreach/inbound-reply-form";
 import { OutreachMessageComposer } from "@/components/outreach/outreach-message-composer";
 import { WebsiteErrorPage } from "@/components/website/website-error-page";
 import { logoutAction } from "@/app/admin/actions";
+import { startWebsiteSDRConversationAction } from "@/app/admin/websites/[id]/outreach/actions";
 import { isAdminAuthenticated, isAdminConfigured } from "@/lib/admin-auth";
 import { generateOutreachDrafts } from "@/lib/outreach-message-generator";
 import { getWebsiteOutreachWorkspace } from "@/lib/outreach";
@@ -207,6 +208,15 @@ export default async function WebsiteOutreachPage({
             </div>
 
             <div className="mt-5 flex flex-wrap gap-2 text-sm">
+              <form action={startWebsiteSDRConversationAction}>
+                <input name="website_id" type="hidden" value={result.website.id} />
+                <button
+                  className="rounded bg-stone-950 px-2 py-1 font-semibold text-white underline-offset-4 hover:underline"
+                  type="submit"
+                >
+                  Open SDR Conversation
+                </button>
+              </form>
               <Link
                 className="rounded bg-stone-100 px-2 py-1 text-stone-800 underline-offset-4 hover:underline"
                 href="/admin/outreach"

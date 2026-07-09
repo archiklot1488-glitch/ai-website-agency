@@ -44,6 +44,9 @@ outreach, autonomous SDR workflows, payments, or custom domains.
    DEV_MOCK_PLACES=false
    GOOGLE_MAPS_API_KEY=
    HANDOFF_API_SECRET=
+   DEV_MOCK_SDR=true
+   SDR_USE_OPENAI=false
+   SDR_API_SECRET=
    ```
 
 5. Start the app:
@@ -192,6 +195,7 @@ For an existing Supabase database, run:
 -- database/migrations/phase6-client-preview-package.sql
 -- database/migrations/phase7-sales-handoff-pipeline.sql
 -- database/migrations/phase8-outreach-assistant.sql
+-- database/migrations/phase9-ai-sdr-handoff-core.sql
 ```
 
 The migration adds nullable source fields to `businesses`, creates
@@ -199,7 +203,8 @@ The migration adds nullable source fields to `businesses`, creates
 existing data. The Phase 6 migration adds offer tracking fields to `websites`
 without dropping existing data. The Phase 7 migration adds deal tracking fields
 to `leads` without dropping existing data. The Phase 8 migration creates
-`outreach_messages` without dropping existing data.
+`outreach_messages` without dropping existing data. The Phase 9 migration
+creates SDR conversation/message tables without dropping existing data.
 
 ## Phase 5 Features
 
@@ -349,6 +354,67 @@ Phase 8 still does not send email/SMS automatically. Messages are manual
 suggestions; review them, use accurate sender identity, avoid deceptive subject
 lines, include opt-out language for cold email, and follow applicable laws and
 platform rules.
+
+## Phase 9 Features
+
+- Admin AI SDR workspace at `/admin/sdr`
+- Per-conversation route at `/admin/sdr/[id]`
+- Deterministic local intent analysis in mock mode
+- Suggested reply generation for manual admin review
+- Conversation and message storage in `sdr_conversations` and `sdr_messages`
+- Hot lead create/update when intent is `interested`, `price_question`,
+  `needs_changes`, or `wants_call`
+- Protected future bot endpoint at `POST /api/sdr/message`
+- Outreach pages can open or start a linked SDR conversation
+
+## SDR Testing
+
+Use mock mode locally:
+
+```bash
+DEV_MOCK_SDR=true
+SDR_USE_OPENAI=false
+```
+
+Open `/admin/sdr`, paste a client message, and optionally include a website slug
+or client contact details. The deterministic analyzer detects:
+
+- `price_question`: price, cost, how much, quote, pricing
+- `interested`: interested, looks good, yes, let's do it, sounds good
+- `needs_changes`: change, edit, update, modify
+- `wants_call`: call, phone, talk, meeting
+- `already_has_website`: already have a website, we have a site
+- `not_interested`: not interested, no thanks, stop
+- `spam`: very short or suspicious messages
+- `unclear`: no strong signal
+
+On `/admin/sdr/[id]`, paste another inbound message to re-analyze the
+conversation. Use `Copy suggested reply` to copy the draft. The app does not send
+messages automatically.
+
+To test the protected SDR API:
+
+```bash
+curl -X POST http://localhost:3000/api/sdr/message \
+  -H "Content-Type: application/json" \
+  -H "x-sdr-secret: $SDR_API_SECRET" \
+  -d '{
+    "website_slug": "your-generated-slug",
+    "client_name": "Alex Client",
+    "client_email": "alex@example.com",
+    "channel": "api",
+    "message": "How much would it cost to launch this?"
+  }'
+```
+
+Hot intents create or update a lead with `source = ai_sdr_analysis`,
+`priority = high`, `handoff_required = true`, and a linked website/business when
+available. If the conversation already has a lead, that lead is updated instead
+of creating duplicates.
+
+Suggested replies are drafts. Admin must review before sending, avoid
+misrepresenting identity, respect opt-out requests, and stop messaging if the
+client says they are not interested.
 
 ## Notes
 
