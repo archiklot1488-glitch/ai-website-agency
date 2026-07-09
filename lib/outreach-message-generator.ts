@@ -1,3 +1,8 @@
+import "server-only";
+
+import { getAIConfig } from "@/lib/ai/ai-config";
+import { logSanitizedOpenAIError } from "@/lib/ai/openai-errors";
+import { generateStructuredJSON } from "@/lib/ai/openai-client";
 import type { Business } from "@/types/database";
 import type { RenderableWebsite } from "@/types/website-rendering";
 import type { OutreachMessageType } from "@/types/outreach";
@@ -15,6 +20,63 @@ type OutreachInput = {
   previewUrl: string;
   website: RenderableWebsite;
 };
+
+type OutreachDraftPackage = {
+  drafts: OutreachDraft[];
+  errorMessage?: string;
+  provider: "deterministic" | "openai";
+};
+
+type OpenAIMessageDraft = {
+  body: string;
+  subject: string;
+};
+
+type OpenAIOutreachDrafts = {
+  followUp1: OpenAIMessageDraft;
+  followUp2: OpenAIMessageDraft;
+  initialPreview: OpenAIMessageDraft;
+  objectionExistingSite: OpenAIMessageDraft;
+  objectionMakeChanges: OpenAIMessageDraft;
+  objectionNotInterested: OpenAIMessageDraft;
+  objectionPrice: OpenAIMessageDraft;
+  objectionSendDetails: OpenAIMessageDraft;
+};
+
+const openAIMessageDraftSchema = {
+  type: "object",
+  properties: {
+    subject: { type: "string" },
+    body: { type: "string" },
+  },
+  required: ["subject", "body"],
+  additionalProperties: false,
+} as const;
+
+const openAIOutreachSchema = {
+  type: "object",
+  properties: {
+    initialPreview: openAIMessageDraftSchema,
+    followUp1: openAIMessageDraftSchema,
+    followUp2: openAIMessageDraftSchema,
+    objectionPrice: openAIMessageDraftSchema,
+    objectionExistingSite: openAIMessageDraftSchema,
+    objectionNotInterested: openAIMessageDraftSchema,
+    objectionSendDetails: openAIMessageDraftSchema,
+    objectionMakeChanges: openAIMessageDraftSchema,
+  },
+  required: [
+    "initialPreview",
+    "followUp1",
+    "followUp2",
+    "objectionPrice",
+    "objectionExistingSite",
+    "objectionNotInterested",
+    "objectionSendDetails",
+    "objectionMakeChanges",
+  ],
+  additionalProperties: false,
+} as const;
 
 function compact(value: string | null | undefined) {
   return value?.trim() || null;
@@ -140,11 +202,149 @@ export function generateObjectionDrafts(input: OutreachInput): OutreachDraft[] {
   ];
 }
 
-export function generateOutreachDrafts(input: OutreachInput) {
+function deterministicOutreachDrafts(input: OutreachInput) {
   return [
     generateInitialPreviewDraft(input),
     generateFollowUpOneDraft(input),
     generateFollowUpTwoDraft(input),
     ...generateObjectionDrafts(input),
   ];
+}
+
+function cleanDraft(
+  draft: OpenAIMessageDraft,
+  fallback: OutreachDraft,
+): OpenAIMessageDraft {
+  return {
+    body: draft.body.trim() || fallback.body,
+    subject: draft.subject.trim() || fallback.subject,
+  };
+}
+
+function businessContext(input: OutreachInput) {
+  return {
+    business_name: businessName(input),
+    business_type: niche(input),
+    city: compact(input.business?.city),
+    country: compact(input.business?.country),
+    preview_url: input.previewUrl,
+    website_tagline: input.website.website_json.brand.tagline,
+    website_tone: input.website.website_json.brand.tone,
+    website_services: input.website.website_json.services.map(
+      (service) => service.title,
+    ),
+  };
+}
+
+function buildOutreachPrompt(input: OutreachInput) {
+  return `Create client-facing outreach draft messages for a manual website preview workflow.
+
+Context:
+${JSON.stringify(businessContext(input), null, 2)}
+
+Rules:
+- These are draft suggestions only. Do not imply any message will be sent automatically.
+- Keep messages short, natural, and personalized to the business name, city, and niche.
+- Include the preview URL in the initial preview and both follow-up messages.
+- Be honest that this is a quick preview concept.
+- Do not claim the client requested it.
+- Do not invent relationships, testimonials, awards, performance numbers, urgency, discounts, or guaranteed results.
+- Keep cold outreach friendly and opt-out safe.
+- Objection responses should be helpful and brief.`;
+}
+
+function applyOpenAIDrafts(
+  generated: OpenAIOutreachDrafts,
+  fallbackDrafts: OutreachDraft[],
+): OutreachDraft[] {
+  const byKey = new Map(fallbackDrafts.map((draft) => [draft.key, draft]));
+  const initial = byKey.get("initial_preview") as OutreachDraft;
+  const followUp1 = byKey.get("follow_up_1") as OutreachDraft;
+  const followUp2 = byKey.get("follow_up_2") as OutreachDraft;
+  const objectionPrice = byKey.get("objection_price") as OutreachDraft;
+  const objectionExistingSite = byKey.get(
+    "objection_existing_site",
+  ) as OutreachDraft;
+  const objectionNotInterested = byKey.get(
+    "objection_not_interested",
+  ) as OutreachDraft;
+  const objectionSendDetails = byKey.get(
+    "objection_send_details",
+  ) as OutreachDraft;
+  const objectionMakeChanges = byKey.get(
+    "objection_make_changes",
+  ) as OutreachDraft;
+
+  const pairs: Array<[OutreachDraft, OpenAIMessageDraft]> = [
+    [initial, generated.initialPreview],
+    [followUp1, generated.followUp1],
+    [followUp2, generated.followUp2],
+    [objectionPrice, generated.objectionPrice],
+    [objectionExistingSite, generated.objectionExistingSite],
+    [objectionNotInterested, generated.objectionNotInterested],
+    [objectionSendDetails, generated.objectionSendDetails],
+    [objectionMakeChanges, generated.objectionMakeChanges],
+  ];
+
+  return pairs.map(([fallback, generatedDraft]) => {
+    const cleaned = cleanDraft(generatedDraft, fallback);
+
+    return {
+      ...fallback,
+      body: cleaned.body,
+      subject: cleaned.subject,
+    };
+  });
+}
+
+async function generateOpenAIOutreachDrafts(
+  input: OutreachInput,
+  fallbackDrafts: OutreachDraft[],
+) {
+  const generated = await generateStructuredJSON<OpenAIOutreachDrafts>({
+    feature: "Outreach draft generation",
+    maxOutputTokens: 2200,
+    schema: openAIOutreachSchema,
+    schemaName: "outreach_drafts",
+    system:
+      "You write concise manual outreach drafts for website preview concepts. Return only JSON that matches the schema.",
+    user: buildOutreachPrompt(input),
+  });
+
+  return applyOpenAIDrafts(generated, fallbackDrafts);
+}
+
+export async function generateOutreachDraftPackage(
+  input: OutreachInput,
+): Promise<OutreachDraftPackage> {
+  const fallbackDrafts = deterministicOutreachDrafts(input);
+
+  if (!getAIConfig().outreachUsesOpenAI) {
+    return {
+      drafts: fallbackDrafts,
+      provider: "deterministic",
+    };
+  }
+
+  try {
+    return {
+      drafts: await generateOpenAIOutreachDrafts(input, fallbackDrafts),
+      provider: "openai",
+    };
+  } catch (error) {
+    logSanitizedOpenAIError("Outreach draft generation", error);
+
+    return {
+      drafts: fallbackDrafts,
+      errorMessage:
+        error instanceof Error
+          ? `${error.message} Deterministic drafts are shown instead.`
+          : "OpenAI outreach generation failed. Deterministic drafts are shown instead.",
+      provider: "deterministic",
+    };
+  }
+}
+
+export async function generateOutreachDrafts(input: OutreachInput) {
+  return (await generateOutreachDraftPackage(input)).drafts;
 }

@@ -40,6 +40,10 @@ const REQUIRED_SERVER_ENV = [
   "NEXT_PUBLIC_APP_URL",
 ] as const;
 
+const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini";
+const DEFAULT_OPENAI_TIMEOUT_MS = 30000;
+const DEFAULT_OPENAI_MAX_OUTPUT_TOKENS = 4000;
+
 function raw(name: string) {
   return process.env[name]?.trim() || "";
 }
@@ -60,6 +64,21 @@ function boolEnv(name: string, defaultValue: boolean) {
   }
 
   return defaultValue;
+}
+
+function intEnv(
+  name: string,
+  defaultValue: number,
+  minValue: number,
+  maxValue: number,
+) {
+  const parsed = Number.parseInt(raw(name), 10);
+
+  if (!Number.isFinite(parsed)) {
+    return defaultValue;
+  }
+
+  return Math.min(Math.max(parsed, minValue), maxValue);
 }
 
 function configuredDetail(name: string) {
@@ -94,6 +113,20 @@ export function getServerEnv() {
     nextPublicAppUrl: raw("NEXT_PUBLIC_APP_URL"),
     nodeEnv: raw("NODE_ENV") || "development",
     openAiApiKey: raw("OPENAI_API_KEY"),
+    openAiMaxOutputTokens: intEnv(
+      "OPENAI_MAX_OUTPUT_TOKENS",
+      DEFAULT_OPENAI_MAX_OUTPUT_TOKENS,
+      500,
+      12000,
+    ),
+    openAiModel: raw("OPENAI_MODEL") || DEFAULT_OPENAI_MODEL,
+    openAiTimeoutMs: intEnv(
+      "OPENAI_TIMEOUT_MS",
+      DEFAULT_OPENAI_TIMEOUT_MS,
+      1000,
+      120000,
+    ),
+    outreachUseOpenAi: boolEnv("OUTREACH_USE_OPENAI", false),
     sdrApiSecret: raw("SDR_API_SECRET"),
     sdrUseOpenAi: boolEnv("SDR_USE_OPENAI", false),
     supabaseAnonKey: raw("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
@@ -135,6 +168,10 @@ export function getPublicEnvStatus() {
     handoffApiSecret: configuredDetail("HANDOFF_API_SECRET"),
     nodeEnv: env.nodeEnv,
     openAiApiKey: configuredDetail("OPENAI_API_KEY"),
+    openAiMaxOutputTokens: `${env.openAiMaxOutputTokens}`,
+    openAiModel: env.openAiModel,
+    openAiTimeoutMs: `${env.openAiTimeoutMs}ms`,
+    outreachUseOpenAi: env.outreachUseOpenAi ? "enabled" : "disabled",
     sdrApiSecret: configuredDetail("SDR_API_SECRET"),
     sdrUseOpenAi: env.sdrUseOpenAi ? "enabled" : "disabled",
     supabaseAnonKey: configuredDetail("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
@@ -217,6 +254,12 @@ function modeItems(): DeploymentReadinessItem[] {
   const env = getServerEnv();
   const isProduction = env.nodeEnv === "production";
   const deployment = getVercelDeploymentInfo();
+  const realWebsiteAiEnabled = !env.devMockAi;
+  const realOutreachAiEnabled = env.outreachUseOpenAi;
+  const realSdrAiEnabled = !env.devMockSdr && env.sdrUseOpenAi;
+  const openAiRequired =
+    realWebsiteAiEnabled || realOutreachAiEnabled || realSdrAiEnabled;
+  const openAiReady = env.openAiApiKey.length > 0;
 
   return [
     item(
@@ -240,14 +283,72 @@ function modeItems(): DeploymentReadinessItem[] {
     item(
       "SDR_USE_OPENAI",
       "SDR OpenAI mode",
-      env.sdrUseOpenAi && !env.openAiApiKey ? "warning" : "optional",
+      env.sdrUseOpenAi && !env.devMockSdr && !openAiReady ? "missing" : "optional",
       env.sdrUseOpenAi ? "enabled" : "disabled",
+    ),
+    item(
+      "OUTREACH_USE_OPENAI",
+      "Outreach OpenAI mode",
+      env.outreachUseOpenAi && !openAiReady ? "missing" : "optional",
+      env.outreachUseOpenAi ? "enabled" : "disabled",
     ),
     item(
       "OPENAI_API_KEY",
       "OpenAI API key",
-      env.openAiApiKey ? "ready" : env.devMockAi ? "optional" : "warning",
-      env.openAiApiKey ? "configured" : "missing",
+      openAiReady ? "ready" : openAiRequired ? "missing" : "optional",
+      openAiReady
+        ? "configured"
+        : openAiRequired
+          ? "missing; required for enabled real OpenAI modes"
+          : "missing; optional while OpenAI modes are mocked/disabled",
+    ),
+    item(
+      "OPENAI_MODEL",
+      "OpenAI model",
+      "ready",
+      env.openAiModel,
+    ),
+    item(
+      "OPENAI_TIMEOUT_MS",
+      "OpenAI timeout",
+      "ready",
+      `${env.openAiTimeoutMs}ms`,
+    ),
+    item(
+      "OPENAI_MAX_OUTPUT_TOKENS",
+      "OpenAI max output tokens",
+      "ready",
+      `${env.openAiMaxOutputTokens}`,
+    ),
+    item(
+      "REAL_WEBSITE_AI",
+      "Real website generation",
+      realWebsiteAiEnabled && !openAiReady
+        ? "missing"
+        : realWebsiteAiEnabled
+          ? "ready"
+          : "optional",
+      realWebsiteAiEnabled ? "enabled" : "mocked by DEV_MOCK_AI",
+    ),
+    item(
+      "REAL_OUTREACH_AI",
+      "Real outreach drafting",
+      realOutreachAiEnabled && !openAiReady
+        ? "missing"
+        : realOutreachAiEnabled
+          ? "ready"
+          : "optional",
+      realOutreachAiEnabled ? "enabled" : "deterministic drafts",
+    ),
+    item(
+      "REAL_SDR_AI",
+      "Real SDR analysis",
+      realSdrAiEnabled && !openAiReady
+        ? "missing"
+        : realSdrAiEnabled
+          ? "ready"
+          : "optional",
+      realSdrAiEnabled ? "enabled" : "deterministic analysis",
     ),
     item(
       "GOOGLE_PLACES_API_KEY",

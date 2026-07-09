@@ -9,7 +9,7 @@ import { WebsiteErrorPage } from "@/components/website/website-error-page";
 import { logoutAction } from "@/app/admin/actions";
 import { startWebsiteSDRConversationAction } from "@/app/admin/websites/[id]/outreach/actions";
 import { isAdminAuthenticated, isAdminConfigured } from "@/lib/admin-auth";
-import { generateOutreachDrafts } from "@/lib/outreach-message-generator";
+import { generateOutreachDraftPackage } from "@/lib/outreach-message-generator";
 import { getWebsiteOutreachWorkspace } from "@/lib/outreach";
 import type { OutreachDraft } from "@/lib/outreach-message-generator";
 import type { OutreachMessage } from "@/types/database";
@@ -99,11 +99,12 @@ export default async function WebsiteOutreachPage({
   const requestHeaders = await headers();
   const previewHref = `/preview/${result.website.slug}?token=${result.website.preview_token}`;
   const previewUrl = `${requestOrigin(requestHeaders)}${previewHref}`;
-  const drafts = generateOutreachDrafts({
+  const draftPackage = await generateOutreachDraftPackage({
     business: result.business,
     previewUrl,
     website: result.website,
   });
+  const drafts = draftPackage.drafts;
   const linkedLead = result.leads[0] ?? null;
 
   return (
@@ -146,6 +147,17 @@ export default async function WebsiteOutreachPage({
             an opt-out line when using cold email, and respect applicable laws
             and platform rules.
           </section>
+
+          {draftPackage.errorMessage ? (
+            <section className="rounded-lg border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-900">
+              {draftPackage.errorMessage}
+            </section>
+          ) : draftPackage.provider === "openai" ? (
+            <section className="rounded-lg border border-emerald-200 bg-emerald-50 p-5 text-sm leading-6 text-emerald-900">
+              Draft suggestions were generated with server-side OpenAI. Review
+              and edit before sending manually.
+            </section>
+          ) : null}
 
           {drafts.map((draft) => (
             <OutreachMessageComposer

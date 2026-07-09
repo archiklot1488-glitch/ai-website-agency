@@ -12,6 +12,8 @@ Use this checklist for a real Vercel launch.
 - [ ] Vercel project is connected to the GitHub repository.
 - [ ] Required environment variables are configured in Vercel.
 - [ ] Optional mock-mode variables are intentionally configured.
+- [ ] `OPENAI_API_KEY` is configured if real website, outreach, or SDR OpenAI modes are enabled.
+- [ ] OpenAI billing/quota and model choice are reviewed before real generation.
 - [ ] `GOOGLE_PLACES_API_KEY` is configured if `DEV_MOCK_PLACES=false`.
 - [ ] Google Places billing/quota limits are reviewed before real searches.
 - [ ] Production branch is set to `main`.
@@ -34,6 +36,10 @@ Use this checklist for a real Vercel launch.
 - [ ] Call `/api/health`.
 - [ ] Create a test business.
 - [ ] Generate a mock website.
+- [ ] If `DEV_MOCK_AI=false`, generate one real OpenAI website and verify valid
+      structured JSON is saved.
+- [ ] If `OUTREACH_USE_OPENAI=true`, open a website outreach page and confirm
+      drafts are generated for manual review only.
 - [ ] Open `/admin/lead-finder` and confirm provider mode.
 - [ ] If using real Google Places, run a small lead query with max results `5`.
 - [ ] Confirm Lead Finder shows resolved type, strict filtering, raw count,
@@ -44,6 +50,8 @@ Use this checklist for a real Vercel launch.
 - [ ] Open `/site/[slug]`.
 - [ ] Test `/api/handoff`.
 - [ ] Test `/api/sdr/message`.
+- [ ] If `DEV_MOCK_SDR=false` and `SDR_USE_OPENAI=true`, confirm SDR analysis
+      still falls back safely if OpenAI quota or rate limits are unavailable.
 - [ ] Verify a hot lead appears in `/admin/leads`.
 - [ ] Run `APP_BASE_URL=https://YOUR_DOMAIN.com npm run smoke:prod`.
 

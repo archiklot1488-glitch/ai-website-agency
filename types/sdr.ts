@@ -47,11 +47,13 @@ export type SDRReplySuggestion = {
 };
 
 export type SDRAnalysisResult = {
+  adminNotes?: string;
   confidence: number;
   handoffRequired: boolean;
   intent: SDRIntent;
   reasoning: string;
   reply: SDRReplySuggestion;
+  safetyFlags?: string[];
   summary: string;
 };
 
