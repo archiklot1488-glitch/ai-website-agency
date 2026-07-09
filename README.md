@@ -191,13 +191,15 @@ For an existing Supabase database, run:
 -- database/migrations/phase4-lead-finder.sql
 -- database/migrations/phase6-client-preview-package.sql
 -- database/migrations/phase7-sales-handoff-pipeline.sql
+-- database/migrations/phase8-outreach-assistant.sql
 ```
 
 The migration adds nullable source fields to `businesses`, creates
 `lead_searches` and `lead_candidates`, and adds indexes without dropping
 existing data. The Phase 6 migration adds offer tracking fields to `websites`
 without dropping existing data. The Phase 7 migration adds deal tracking fields
-to `leads` without dropping existing data.
+to `leads` without dropping existing data. The Phase 8 migration creates
+`outreach_messages` without dropping existing data.
 
 ## Phase 5 Features
 
@@ -306,6 +308,47 @@ curl -X POST http://localhost:3000/api/handoff \
 The API creates a `needs_human` lead with source `bot_handoff`,
 `handoff_required = true`, and high priority by default. It requires
 `HANDOFF_API_SECRET` and the `x-handoff-secret` header.
+
+## Phase 8 Features
+
+- Admin Outreach Assistant at `/admin/outreach`
+- Per-website outreach workspace at `/admin/websites/[id]/outreach`
+- Deterministic local message suggestions for initial previews, follow-ups, and
+  common objections
+- Editable subject/body fields before copying or saving
+- Copy buttons for subject, body, and full message
+- Manual copy tracking in `outreach_messages`
+- Manual sent tracking that updates website outreach status
+- Manual inbound reply logging with reply categories
+- Hot lead creation/update for interested, price-question, and needs-changes
+  replies
+
+## Outreach Assistant Testing
+
+1. Generate and edit a website preview.
+2. Open `/admin/outreach`.
+3. Click `Outreach` for a website.
+4. Review and edit the generated initial preview, follow-up, or objection
+   response messages.
+5. Click `Copy subject`, `Copy body`, or `Copy full message`.
+6. Confirm the message status changes to `copied`.
+7. Click `Mark Sent Manually`.
+8. Confirm initial previews move website outreach status to `sent`, and
+   follow-ups move it to `followed_up`.
+
+To paste a reply and create a hot lead:
+
+1. Open `/admin/websites/[id]/outreach`.
+2. Paste the client reply in `Paste Client Reply`.
+3. Choose `interested`, `price_question`, or `needs_changes`.
+4. Click `Save reply`.
+5. Open `/admin/leads` and confirm a high-priority lead appears or the linked
+   lead is updated with `handoff_required = true`.
+
+Phase 8 still does not send email/SMS automatically. Messages are manual
+suggestions; review them, use accurate sender identity, avoid deceptive subject
+lines, include opt-out language for cold email, and follow applicable laws and
+platform rules.
 
 ## Notes
 

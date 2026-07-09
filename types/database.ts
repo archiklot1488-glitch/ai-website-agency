@@ -122,6 +122,23 @@ type LeadCandidateTableRow = {
   created_at: string;
 };
 
+type OutreachMessageRow = {
+  id: string;
+  business_id: string | null;
+  website_id: string | null;
+  lead_id: string | null;
+  message_type: string;
+  channel: string;
+  direction: string;
+  subject: string | null;
+  body: string;
+  status: string;
+  copied_at: string | null;
+  sent_manual_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 type TableDefinition<Row, Insert, Update> = {
   Row: Row;
   Insert: Insert;
@@ -264,6 +281,26 @@ export type Database = {
         },
         Partial<LeadCandidateTableRow>
       >;
+      outreach_messages: TableDefinition<
+        OutreachMessageRow,
+        {
+          id?: string;
+          business_id?: string | null;
+          website_id?: string | null;
+          lead_id?: string | null;
+          message_type: string;
+          channel?: string;
+          direction?: string;
+          subject?: string | null;
+          body: string;
+          status?: string;
+          copied_at?: string | null;
+          sent_manual_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        },
+        Partial<OutreachMessageRow>
+      >;
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -289,3 +326,7 @@ export type LeadCandidateRow =
 export type LeadCandidateInsert =
   Database["public"]["Tables"]["lead_candidates"]["Insert"];
 export type Payment = Database["public"]["Tables"]["payments"]["Row"];
+export type OutreachMessage =
+  Database["public"]["Tables"]["outreach_messages"]["Row"];
+export type OutreachMessageInsert =
+  Database["public"]["Tables"]["outreach_messages"]["Insert"];

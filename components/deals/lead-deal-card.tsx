@@ -132,7 +132,7 @@ export function LeadDealCard({ lead }: LeadDealCardProps) {
   }, [launchState.status, router, saveState.status]);
 
   return (
-    <article className={cardClass}>
+    <article className={cardClass} id={`lead-${lead.id}`}>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-2">
