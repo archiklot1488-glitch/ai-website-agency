@@ -140,6 +140,17 @@ export function BusinessList({ businesses }: BusinessListProps) {
                         <span className="font-semibold text-stone-600">
                           Outreach:
                         </span>{" "}
+                        <Link
+                          className="rounded bg-stone-100 px-1.5 py-1 text-stone-800 underline-offset-4 hover:underline"
+                          href={`/admin/websites/${business.website.id}/outreach`}
+                        >
+                          Outreach Assistant
+                        </Link>
+                      </div>
+                      <div>
+                        <span className="font-semibold text-stone-600">
+                          Outreach status:
+                        </span>{" "}
                         <code className="rounded bg-stone-100 px-1.5 py-1 text-stone-800">
                           {formatStatus(business.website.outreach_status)}
                         </code>
