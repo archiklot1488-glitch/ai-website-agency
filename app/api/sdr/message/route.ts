@@ -1,5 +1,6 @@
-import { timingSafeEqual } from "crypto";
-import { NextResponse } from "next/server";
+import { jsonError, jsonOk, sanitizeServerError } from "@/lib/api/errors";
+import { getServerEnv } from "@/lib/env";
+import { verifyApiSecret } from "@/lib/security/api-auth";
 import { processSDRInboundMessage } from "@/lib/sdr/conversations";
 
 type SDRMessagePayload = {
@@ -15,21 +16,6 @@ type SDRMessagePayload = {
   website_slug?: unknown;
 };
 
-function getSDRSecret() {
-  return process.env.SDR_API_SECRET?.trim() || null;
-}
-
-function safeCompare(left: string, right: string) {
-  const leftBuffer = Buffer.from(left);
-  const rightBuffer = Buffer.from(right);
-
-  if (leftBuffer.length !== rightBuffer.length) {
-    return false;
-  }
-
-  return timingSafeEqual(leftBuffer, rightBuffer);
-}
-
 function stringValue(value: unknown) {
   return typeof value === "string" && value.trim().length > 0
     ? value.trim()
@@ -37,15 +23,14 @@ function stringValue(value: unknown) {
 }
 
 export async function POST(request: Request) {
-  const configuredSecret = getSDRSecret();
-  const providedSecret = request.headers.get("x-sdr-secret")?.trim() || null;
+  const secret = verifyApiSecret({
+    configuredSecret: getServerEnv().sdrApiSecret,
+    headerName: "x-sdr-secret",
+    request,
+  });
 
-  if (
-    !configuredSecret ||
-    !providedSecret ||
-    !safeCompare(providedSecret, configuredSecret)
-  ) {
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!secret.ok) {
+    return jsonError(secret.message, secret.status);
   }
 
   let payload: SDRMessagePayload;
@@ -54,21 +39,18 @@ export async function POST(request: Request) {
     const body: unknown = await request.json();
 
     if (typeof body !== "object" || body === null || Array.isArray(body)) {
-      return NextResponse.json(
-        { error: "Request body must be a JSON object." },
-        { status: 400 },
-      );
+      return jsonError("Request body must be a JSON object.", 400);
     }
 
     payload = body as SDRMessagePayload;
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    return jsonError("Invalid JSON body.", 400);
   }
 
   const message = stringValue(payload.message);
 
   if (!message) {
-    return NextResponse.json({ error: "message is required." }, { status: 400 });
+    return jsonError("message is required.", 400);
   }
 
   try {
@@ -85,7 +67,7 @@ export async function POST(request: Request) {
       websiteSlug: stringValue(payload.website_slug),
     });
 
-    return NextResponse.json(
+    return jsonOk(
       {
         conversation_id: result.conversation.id,
         detected_intent: result.analysis.intent,
@@ -94,17 +76,9 @@ export async function POST(request: Request) {
         message_id: result.message.id,
         suggested_reply: result.analysis.reply.body,
       },
-      { status: 201 },
+      201,
     );
   } catch (error) {
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "SDR message could not be processed.",
-      },
-      { status: 400 },
-    );
+    return jsonError(sanitizeServerError(error), 500);
   }
 }

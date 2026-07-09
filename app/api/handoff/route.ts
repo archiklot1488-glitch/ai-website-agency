@@ -1,6 +1,7 @@
-import { timingSafeEqual } from "crypto";
-import { NextResponse } from "next/server";
+import { jsonError, jsonOk, sanitizeServerError } from "@/lib/api/errors";
 import { createBotHandoffLead } from "@/lib/deals";
+import { getServerEnv } from "@/lib/env";
+import { verifyApiSecret } from "@/lib/security/api-auth";
 import { isLeadPriority, type LeadPriority } from "@/types/deals";
 
 type HandoffPayload = {
@@ -17,21 +18,6 @@ type HandoffPayload = {
   website_id?: unknown;
   website_slug?: unknown;
 };
-
-function getHandoffSecret() {
-  return process.env.HANDOFF_API_SECRET?.trim() || null;
-}
-
-function safeCompare(left: string, right: string) {
-  const leftBuffer = Buffer.from(left);
-  const rightBuffer = Buffer.from(right);
-
-  if (leftBuffer.length !== rightBuffer.length) {
-    return false;
-  }
-
-  return timingSafeEqual(leftBuffer, rightBuffer);
-}
 
 function stringValue(value: unknown) {
   return typeof value === "string" && value.trim().length > 0
@@ -73,15 +59,14 @@ function parsePriority(value: unknown) {
 }
 
 export async function POST(request: Request) {
-  const configuredSecret = getHandoffSecret();
-  const providedSecret = request.headers.get("x-handoff-secret")?.trim() || null;
+  const secret = verifyApiSecret({
+    configuredSecret: getServerEnv().handoffApiSecret,
+    headerName: "x-handoff-secret",
+    request,
+  });
 
-  if (
-    !configuredSecret ||
-    !providedSecret ||
-    !safeCompare(providedSecret, configuredSecret)
-  ) {
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!secret.ok) {
+    return jsonError(secret.message, secret.status);
   }
 
   let payload: HandoffPayload;
@@ -90,30 +75,24 @@ export async function POST(request: Request) {
     const body: unknown = await request.json();
 
     if (typeof body !== "object" || body === null || Array.isArray(body)) {
-      return NextResponse.json(
-        { error: "Request body must be a JSON object." },
-        { status: 400 },
-      );
+      return jsonError("Request body must be a JSON object.", 400);
     }
 
     payload = body as HandoffPayload;
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    return jsonError("Invalid JSON body.", 400);
   }
 
   const priority = parsePriority(payload.priority);
 
   if (!priority) {
-    return NextResponse.json(
-      { error: "priority must be low, normal, or high." },
-      { status: 400 },
-    );
+    return jsonError("priority must be low, normal, or high.", 400);
   }
 
   const dealValue = parseDealValue(payload.deal_value_cents);
 
   if (!dealValue.ok) {
-    return NextResponse.json({ error: dealValue.error }, { status: 400 });
+    return jsonError(dealValue.error, 400);
   }
 
   try {
@@ -132,20 +111,14 @@ export async function POST(request: Request) {
       websiteSlug: stringValue(payload.website_slug),
     });
 
-    return NextResponse.json(
+    return jsonOk(
       {
         lead_id: lead.id,
         status: lead.status,
       },
-      { status: 201 },
+      201,
     );
   } catch (error) {
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error ? error.message : "Handoff lead could not be created.",
-      },
-      { status: 400 },
-    );
+    return jsonError(sanitizeServerError(error), 500);
   }
 }

@@ -13,11 +13,13 @@ export function getLeadFinderProvider(): LeadFinderProvider {
     return new MockLeadFinderProvider();
   }
 
-  const apiKey = process.env.GOOGLE_MAPS_API_KEY?.trim();
+  const apiKey =
+    process.env.GOOGLE_PLACES_API_KEY?.trim() ||
+    process.env.GOOGLE_MAPS_API_KEY?.trim();
 
   if (!apiKey) {
     throw new Error(
-      "GOOGLE_MAPS_API_KEY is not configured. Set DEV_MOCK_PLACES=true for local mock searches.",
+      "GOOGLE_PLACES_API_KEY is not configured. Set DEV_MOCK_PLACES=true for local mock searches.",
     );
   }
 

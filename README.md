@@ -38,15 +38,22 @@ outreach, autonomous SDR workflows, payments, or custom domains.
    NEXT_PUBLIC_SUPABASE_ANON_KEY=
    SUPABASE_SERVICE_ROLE_KEY=
    ADMIN_PASSWORD=
+
    OPENAI_API_KEY=
-   OPENAI_MODEL=gpt-4.1-mini
-   DEV_MOCK_AI=false
-   DEV_MOCK_PLACES=false
-   GOOGLE_MAPS_API_KEY=
-   HANDOFF_API_SECRET=
+   GOOGLE_PLACES_API_KEY=
+
+   DEV_MOCK_AI=true
+   DEV_MOCK_PLACES=true
    DEV_MOCK_SDR=true
    SDR_USE_OPENAI=false
+
+   HANDOFF_API_SECRET=
    SDR_API_SECRET=
+
+   NEXT_PUBLIC_APP_URL=
+   APP_BASE_URL=
+
+   OPENAI_MODEL=gpt-4.1-mini
    ```
 
 5. Start the app:
@@ -64,6 +71,7 @@ npm run dev
 npm run build
 npm run start
 npm run typecheck
+npm run verify
 ```
 
 ## Phase 1 Features
@@ -171,7 +179,7 @@ Then:
 4. Open `/admin` and confirm the imported business appears.
 5. Manually click `Generate Website` when you are ready to create a preview.
 
-Mock mode does not call Google and does not require `GOOGLE_MAPS_API_KEY`.
+Mock mode does not call Google and does not require `GOOGLE_PLACES_API_KEY`.
 
 ## Real Google Places Setup
 
@@ -179,7 +187,7 @@ To use real Google Places searches:
 
 ```bash
 DEV_MOCK_PLACES=false
-GOOGLE_MAPS_API_KEY=your-google-api-key
+GOOGLE_PLACES_API_KEY=your-google-api-key
 ```
 
 Enable the Places API in Google Cloud for that key. Google calls happen only on
@@ -415,6 +423,20 @@ of creating duplicates.
 Suggested replies are drafts. Admin must review before sending, avoid
 misrepresenting identity, respect opt-out requests, and stop messaging if the
 client says they are not interested.
+
+## Phase 10 Features
+
+- Server-side environment validation helpers in `lib/env.ts`
+- Production readiness dashboard at `/admin/production`
+- Safe health check at `/api/health`
+- Centralized API secret verification and sanitized API error helpers
+- Hardened `/api/handoff` and `/api/sdr/message` secret handling
+- Security headers in `next.config.ts`
+- Noindex/nofollow metadata for admin routes
+- Deployment guide at [`docs/production-deployment.md`](docs/production-deployment.md)
+- `npm run verify` script for typecheck plus build
+
+Phase 10 does not require a Supabase migration.
 
 ## Notes
 
